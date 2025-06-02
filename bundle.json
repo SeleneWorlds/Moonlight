@@ -1,0 +1,6 @@
+{
+  "name": "moonlight",
+  "entrypoints": [
+    "init.lua"
+  ]
+}
