@@ -1,6 +1,32 @@
 local InventoryItem = require("moonlight-inventory.server.lua.inventory_item")
+local Logging = require("selene.logging")
 
 local Inventory = {}
+
+local function normalizeSlotId(slotId)
+    if type(slotId) == "number" and math.tointeger(slotId) then
+        return math.tointeger(slotId)
+    end
+    error("Slot ID must be an integer, got " .. tostring(slotId))
+end
+
+-- Engine userdata (including registry definitions) retain their references.
+-- Copied inventories get independent contents and no live subscriptions or owner.
+local function deepCopy(value, seen)
+    if type(value) ~= "table" then return value end
+    if seen[value] then return seen[value] end
+    local copy = {}
+    seen[value] = copy
+    local isInventory = rawget(value, "_observers") ~= nil
+        and rawget(value, "_items") ~= nil
+    for key, entry in pairs(value) do
+        if not isInventory or (key ~= "_observers" and key ~= "owner") then
+            copy[deepCopy(key, seen)] = deepCopy(entry, seen)
+        end
+    end
+    if isInventory then copy._observers = {} end
+    return setmetatable(copy, getmetatable(value))
+end
 
 function Inventory:findInventoryItems(filter)
     local items = {}
@@ -284,6 +310,36 @@ function Inventory:getSlotMaxCount(slotId)
 end
 
 function Inventory:slotUpdated(slotId)
+    slotId = normalizeSlotId(slotId)
+    self.dirtySlot = slotId
+    -- Snapshot subscriptions so callbacks can safely subscribe/unsubscribe.
+    local observers = {}
+    for i, observer in ipairs(self._observers) do observers[i] = observer end
+    for _, observer in ipairs(observers) do
+        self.dirtySlot = slotId
+        local ok, err = pcall(observer, self)
+        if not ok then Logging.error("Lua Error in inventory observer: " .. tostring(err)) end
+    end
+    self.dirtySlot = slotId
+end
+
+function Inventory:subscribe(observer)
+    assert(type(observer) == "function", "Inventory observer must be a function")
+    table.insert(self._observers, observer)
+    return observer
+end
+
+function Inventory:unsubscribe(observer)
+    for i, candidate in ipairs(self._observers) do
+        if candidate == observer then
+            table.remove(self._observers, i)
+            return
+        end
+    end
+end
+
+function Inventory:addSlot(slotId)
+    table.insert(self._slots, normalizeSlotId(slotId))
 end
 
 function Inventory:countItem(filter)
@@ -325,23 +381,30 @@ function Inventory:copyItemWithCount(item, count)
 end
 
 function Inventory:getItem(slotId)
-    error("Inventory:getItem is abstract and must be implemented in a subclass.")
+    return self._items[normalizeSlotId(slotId)]
 end
 
 function Inventory:setItem(slotId, item)
-    error("Inventory:setItem is abstract and must be implemented in a subclass.")
+    slotId = normalizeSlotId(slotId)
+    self._items[slotId] = item
+    self:slotUpdated(slotId)
 end
 
 function Inventory:getSlots()
-    error("Inventory:getSlots is abstract and must be implemented in a subclass.")
+    return self._slots
 end
 
 function Inventory:copyItem(item)
-    error("Inventory:copyItem is abstract and must be implemented in a subclass.")
+    return deepCopy(item, {})
 end
 
 function Inventory:new(o)
     o = o or {}
+    o._items = o.items or {}
+    o._slots = o.slots or {}
+    o.items = nil
+    o.slots = nil
+    o._observers = o._observers or {}
     setmetatable(o, self)
     self.__index = self
     return o
