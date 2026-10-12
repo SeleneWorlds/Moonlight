@@ -312,7 +312,7 @@ const projectionRevision = ref(0);
 const showTileGrid = ref(false);
 const showLights = ref(selene.world.isLightingEnabled());
 async function syncEditorLighting() {
-  const lighting = showLights.value && (!enabled.value || cameraZoom > 0.5);
+  const lighting = !enabled.value || (showLights.value && cameraZoom > 0.5);
   if (selene.world.isLightingEnabled() !== lighting) {
     await selene.world.setLightingEnabled(lighting);
   }
@@ -1176,8 +1176,8 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   selene.world.setTileOcclusionEnabled?.(true);
-  if (selene.world.isLightingEnabled() !== showLights.value) {
-    void selene.world.setLightingEnabled(showLights.value);
+  if (!selene.world.isLightingEnabled()) {
+    void selene.world.setLightingEnabled(true);
   }
   cameraRequests.cancel();
   zoomRequests.cancel();
