@@ -38,6 +38,8 @@ package.preload["test.scripted-schema"] = function()
         invalid = function() return "invalid" end,
         invalidProperty = function() return { title = 5 } end,
         named = function() return { herbs = "test:rolls", optional = { type = "test:pool", optional = true } } end,
+        variants = function() return { data = { type = "schema_lookup", property = "type",
+            variants = { item = "test:pool" } } } end,
         unknown = function() return { herbs = "test:missing" } end,
         cycle = function() return { herbs = "test:cycle" } end,
     }
@@ -52,6 +54,7 @@ end
 assert(request().schema.amount == "integer")
 assert(calls == 1)
 assert(request("custom").schema.title == "string")
+assert(request("variants").schema.data.variants.item.properties.rolls == "integer")
 local named = request("named").schema
 assert(named.herbs.type == "object" and named.herbs.properties.pools.valueType.properties.rolls == "integer")
 assert(named.optional.optional == true and named.optional.properties.rolls == "integer")

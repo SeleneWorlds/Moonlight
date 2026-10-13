@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import { ExternalLink, Eye, Locate, Radius } from '@lucide/vue';
-import type { DistancePick, SchemaDefinition } from './schema';
+import { resolveSchemaField, type DistancePick, type SchemaDefinition } from './schema';
 import { useSelene, type Coordinate } from './selene';
 import RegistryVisual from './RegistryVisual.vue';
 import SchemaMap from './SchemaMap.vue';
@@ -45,6 +45,7 @@ const parsed = computed(() => {
 });
 const fields = computed(() =>
   Object.entries(props.schema)
+    .map(([name, definition]) => [name, resolveSchemaField(definition, parsed.value ?? {})] as const)
     .map(([name, definition]) => ({
       name,
       ...(typeof definition === 'string' ? { type: definition, optional: false } : definition),

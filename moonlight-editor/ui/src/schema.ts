@@ -21,6 +21,7 @@ export type SchemaDefinition =
       coordinate?: string;
       property?: string;
       function?: string;
+      variants?: Record<string, SchemaDefinition>;
       properties?: Record<string, SchemaDefinition>;
       keyType?: SchemaDefinition;
       valueType?: SchemaDefinition;
@@ -59,4 +60,17 @@ export function defaultSchemaValue(definition: SchemaDefinition): unknown {
     default:
       return '';
   }
+}
+
+// Select a field definition using a sibling property, retaining wrapper metadata.
+export function resolveSchemaField(definition: SchemaDefinition, contents: Record<string, unknown>): SchemaDefinition {
+  if (typeof definition === 'string' || definition.type !== 'schema_lookup') {
+    return definition;
+  }
+  const selected = definition.property ? contents[definition.property] : undefined;
+  const variant =
+    typeof selected === 'string' && Object.prototype.hasOwnProperty.call(definition.variants ?? {}, selected)
+      ? definition.variants![selected]!
+      : 'any';
+  return { optional: definition.optional, ...(typeof variant === 'string' ? { type: variant } : variant) };
 }

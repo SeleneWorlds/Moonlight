@@ -405,6 +405,11 @@ local function resolveSchema(definition, resolving)
         for key, value in pairs(resolved.properties) do properties[key] = resolveSchema(value, resolving) end
         resolved.properties = properties
     end
+    if resolved.variants then
+        local variants = {}
+        for key, value in pairs(resolved.variants) do variants[key] = resolveSchema(value, resolving) end
+        resolved.variants = variants
+    end
     for _, key in ipairs({ "valueType", "keyType" }) do
         if resolved[key] then resolved[key] = resolveSchema(resolved[key], resolving) end
     end
