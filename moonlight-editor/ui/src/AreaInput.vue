@@ -192,6 +192,7 @@ async function open(): Promise<void> {
   await load();
 }
 function close(): void {
+  dialog.value?.close();
   generation++;
   endPan();
   cancelResize();

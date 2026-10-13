@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Copy, FilePlus, Pipette } from '@lucide/vue';
 import type { DistancePick, SchemaDefinition } from './schema';
 import SchemaForm from './SchemaForm.vue';
@@ -190,6 +190,10 @@ function requestConfirmation(action: 'persist' | 'discard', path: string | null 
 }
 
 const confirmationDialog = ref<HTMLDialogElement | null>(null);
+onBeforeUnmount(() => {
+  createDialog.value?.close();
+  confirmationDialog.value?.close();
+});
 watch(confirmation, (action) => {
   if (action) {
     confirmationDialog.value?.showModal();

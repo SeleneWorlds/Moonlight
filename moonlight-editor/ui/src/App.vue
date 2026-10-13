@@ -1352,6 +1352,7 @@ onBeforeUnmount(() => {
     </footer>
   </section>
   <FileModal
+    v-if="enabled"
     v-show="visible"
     v-model:selected-bundle="selectedBundle"
     v-model:selected-registry="selectedRegistry"
