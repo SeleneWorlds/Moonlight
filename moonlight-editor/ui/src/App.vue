@@ -136,18 +136,16 @@ const inlineForm = ref<{
 const inlinePicking = ref(false);
 const inlineSaving = ref(false);
 const inlineMessage = ref('');
-const inlineFormScale = 0.5;
 const inlinePosition = computed(() => {
   void projectionRevision.value;
   const point = inlineForm.value ? selene.world.projectCoordinate(inlineForm.value.coordinate) : { x: 0, y: 0 };
-  const width = Math.min(560, (window.innerWidth - 16) / inlineFormScale);
-  const top = Math.max(8, Math.min(point.y, window.innerHeight - 320 * inlineFormScale));
+  const width = Math.min(560, window.innerWidth - 16);
+  const top = Math.max(8, Math.min(point.y, window.innerHeight - 320));
   return {
     width: `${width}px`,
-    left: `${Math.max(8, Math.min(point.x + 20, window.innerWidth - width * inlineFormScale - 8))}px`,
+    left: `${Math.max(8, Math.min(point.x + 20, window.innerWidth - width - 8))}px`,
     top: `${top}px`,
-    maxHeight: `${(window.innerHeight - top - 8) / inlineFormScale}px`,
-    transform: `scale(${inlineFormScale})`,
+    maxHeight: `${window.innerHeight - top - 8}px`,
   };
 });
 function refreshInlinePosition(): void {
@@ -1431,7 +1429,6 @@ onBeforeUnmount(() => {
 .inline-modal {
   position: fixed;
   z-index: 1000;
-  transform-origin: top left;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
