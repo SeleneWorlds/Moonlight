@@ -472,7 +472,7 @@ function selectRegistry(): void {
   requestProject();
 }
 
-function setProjectVisible(show: boolean): void {
+function setProjectVisible(show: boolean, refreshResources = true): void {
   if (show) {
     closeInlineForm();
   }
@@ -483,7 +483,7 @@ function setProjectVisible(show: boolean): void {
   if (show) {
     releaseTextCapture ??= selene.input.captureText();
     releasePanelKeys ??= selene.input.captureKeys('Escape');
-    if (connected.value) {
+    if (connected.value && refreshResources) {
       if (bundleOptions.value.length === 0) {
         requestBundles();
       } else {
@@ -634,7 +634,8 @@ function finishCoordinatePicker(coordinate?: Coordinate): void {
     releaseTextCapture ??= selene.input.captureText();
     releasePanelKeys ??= selene.input.captureKeys('Escape');
   } else {
-    setProjectVisible(true);
+    // The current form is still mounted; refreshing its schema would recreate it.
+    setProjectVisible(true, false);
   }
 }
 
@@ -1288,7 +1289,9 @@ onBeforeUnmount(() => {
     <button type="button" @click="finishCoordinatePicker()">Cancel</button>
   </div>
   <section
-    v-if="inlineForm && !inlinePicking && inlineForm.coordinate.z === cameraCoordinate.z"
+    v-if="inlineForm"
+    v-show="!inlinePicking && inlineForm.coordinate.z === cameraCoordinate.z"
+    :key="inlineForm.id"
     class="inline-modal"
     :style="inlinePosition"
     role="dialog"
