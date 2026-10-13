@@ -11,6 +11,18 @@ package.loaded["selene.event"] = { of = function() return {} end }
 for _, name in ipairs({ "registries", "grid", "permissions" }) do
     package.loaded["selene." .. name] = {}
 end
+local definitions = {
+    ["test:rolls"] = { type = "object", properties = { pools = { type = "array", valueType = "test:pool" } } },
+    ["test:pool"] = { type = "object", properties = { rolls = "integer" } },
+    ["test:cycle"] = { type = "object", properties = { nested = "test:cycle" } },
+}
+package.loaded["selene.registries"].findByName = function(registry, name)
+    assert(registry == "selene:schemas")
+    if definitions[name] then return { getField = function(_, field)
+        assert(field == "definition")
+        return definitions[name]
+    end } end
+end
 local Editor = dofile("server/lua/editor.lua")
 local enabled = true
 Editor.isEnabled = function() return enabled end
@@ -25,6 +37,9 @@ package.preload["test.scripted-schema"] = function()
         broken = function() error("provider failed") end,
         invalid = function() return "invalid" end,
         invalidProperty = function() return { title = 5 } end,
+        named = function() return { herbs = "test:rolls", optional = { type = "test:pool", optional = true } } end,
+        unknown = function() return { herbs = "test:missing" } end,
+        cycle = function() return { herbs = "test:cycle" } end,
     }
 end
 local handler = handlers["moonlight-editor:request-scripted-schema"]
@@ -37,7 +52,11 @@ end
 assert(request().schema.amount == "integer")
 assert(calls == 1)
 assert(request("custom").schema.title == "string")
-for _, functionName in ipairs({ "broken", "invalid", "invalidProperty", "missing" }) do
+local named = request("named").schema
+assert(named.herbs.type == "object" and named.herbs.properties.pools.valueType.properties.rolls == "integer")
+assert(named.optional.optional == true and named.optional.properties.rolls == "integer")
+assert(definitions["test:rolls"].properties.pools.valueType == "test:pool")
+for _, functionName in ipairs({ "broken", "invalid", "invalidProperty", "missing", "unknown", "cycle" }) do
     local reply = request(functionName)
     assert(reply.schema == nil and type(reply.message) == "string")
 end

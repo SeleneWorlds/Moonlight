@@ -381,6 +381,36 @@ Network.handlePayload("moonlight-editor:focus-character", function(player)
     focusCamera(player, coordinate)
 end)
 
+-- Named types are bundle-provided definitions in the selene:schemas registry.
+-- Resolve recursively before sending them to the form's built-in field editors.
+local function resolveSchema(definition, resolving)
+    local kind = type(definition) == "string" and definition or definition.type
+    local resolved = {}
+    if kind:find(":", 1, true) then
+        assert(not resolving[kind], "Cyclic schema reference: " .. kind)
+        local entry = assert(Registries.findByName("selene:schemas", kind), "Unknown schema: " .. kind)
+        resolving[kind] = true
+        resolved = resolveSchema(assert(entry:getField("definition"), "Missing schema definition: " .. kind), resolving)
+        resolving[kind] = nil
+    elseif type(definition) == "string" then
+        return definition
+    end
+    if type(definition) == "table" then
+        for key, value in pairs(definition) do
+            if key ~= "type" or not kind:find(":", 1, true) then resolved[key] = value end
+        end
+    end
+    if resolved.properties then
+        local properties = {}
+        for key, value in pairs(resolved.properties) do properties[key] = resolveSchema(value, resolving) end
+        resolved.properties = properties
+    end
+    for _, key in ipairs({ "valueType", "keyType" }) do
+        if resolved[key] then resolved[key] = resolveSchema(resolved[key], resolving) end
+    end
+    return resolved
+end
+
 Network.handlePayload("moonlight-editor:request-scripted-schema", function(player, payload)
     if not Editor.isEnabled(player) or type(payload) ~= "table"
         or type(payload.requestId) ~= "string" or type(payload.module) ~= "string"
@@ -398,6 +428,9 @@ Network.handlePayload("moonlight-editor:request-scripted-schema", function(playe
                 or (type(definition) == "table" and type(definition.type) == "string"),
                 "Schema properties must be type names or property definitions.")
         end
+        local resolved = {}
+        for name, definition in pairs(result) do resolved[name] = resolveSchema(definition, {}) end
+        result = resolved
         -- Verify serialization here so failures can be reported to the requesting form.
         Json.encode(result)
         return result
