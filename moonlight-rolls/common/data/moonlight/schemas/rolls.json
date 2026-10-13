@@ -1,6 +1,7 @@
 {
   "definition": {
     "type": "object",
+    "editor": "moonlight:rolls",
     "properties": {
       "conditions": {
         "type": "array",
@@ -21,6 +22,10 @@
         "valueType": {
           "type": "object",
           "properties": {
+            "name": {
+              "type": "string",
+              "optional": true
+            },
             "rolls": {
               "type": "integer",
               "min": 0,

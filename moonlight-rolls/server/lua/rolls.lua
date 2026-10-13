@@ -87,9 +87,10 @@ function Rolls:schema()
         weight = { type = "number", min = 0, optional = true },
         conditions = copy(conditions)
     })
-    return { type = "object", properties = {
+    return { type = "object", editor = "moonlight:rolls", properties = {
         conditions = conditions,
         pools = { type = "array", valueType = { type = "object", properties = {
+            name = { type = "string", optional = true },
             rolls = { type = "integer", min = 0, optional = true },
             conditions = copy(conditions),
             entries = { type = "array", valueType = entry }
