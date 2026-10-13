@@ -1273,11 +1273,9 @@ onBeforeUnmount(() => {
       @click="toggleTileGrid"
     >
       <Grid2X2 :size="16" aria-hidden="true" />
-      Toggle Grid
     </button>
     <button type="button" title="Enable or disable scene lighting" :aria-pressed="showLights" @click="toggleLights">
       <Lightbulb :size="16" aria-hidden="true" />
-      Toggle Lights
     </button>
     <button
       type="button"
