@@ -7,6 +7,7 @@ const props = defineProps<{
   label: string;
   optionLabels?: Record<string, string>;
   disabled?: boolean;
+  appearance?: 'form' | 'compact';
 }>();
 const value = defineModel<string>({ required: true });
 const emit = defineEmits<{ change: [] }>();
@@ -92,7 +93,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', closeOutside));
 <template>
   <!-- Stop internal events from being retargeted to the closed editor shadow host. -->
   <div ref="root" class="select-input" @pointerdown.stop>
-    <div class="trigger" :class="{ open, disabled: disabled || !options.length }">
+    <div class="trigger" :class="{ open, disabled: disabled || !options.length, form: appearance === 'form' }">
       <input
         type="text"
         role="combobox"
@@ -158,6 +159,11 @@ onUnmounted(() => document.removeEventListener('pointerdown', closeOutside));
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+.trigger.form {
+  padding: 8px 9px;
+  border-color: #3f3f46;
+  background: #18181b;
 }
 .trigger input {
   flex: 1;

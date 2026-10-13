@@ -223,6 +223,9 @@ export function editorHttpRequest(
     case 'request-project':
       path = `/resources/bundles/${segment('bundle')}/registries/${segment('registry')}`;
       break;
+    case 'registry-field-options':
+      path = `/registries/${segment('registry')}/field-options`;
+      break;
     case 'search-registry':
       path = `/registries/${segment('registry')}/entries`;
       break;

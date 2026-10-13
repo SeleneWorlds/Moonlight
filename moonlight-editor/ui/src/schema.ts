@@ -17,6 +17,7 @@ export type SchemaDefinition =
       max?: number;
       values?: Array<{ value: unknown; label: string }>;
       registry?: string;
+      reference?: string;
       coordinate?: string;
       property?: string;
       function?: string;

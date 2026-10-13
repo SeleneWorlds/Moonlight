@@ -312,6 +312,7 @@ function valueLabel(value: unknown): string {
     <div v-if="!readonly" class="add-entry">
       <SchemaForm
         :key="contents"
+        :hide-field-labels="primitiveValue"
         :schema="{ key: keyType }"
         :contents="draft"
         :registry-options="registryOptions"

@@ -13,6 +13,7 @@ import AreaInput from './AreaInput.vue';
 import DirectionInput from './DirectionInput.vue';
 import ScriptedSchemaInput from './ScriptedSchemaInput.vue';
 import SelectInput from './SelectInput.vue';
+import RegistryFieldReferenceInput from './RegistryFieldReferenceInput.vue';
 
 type JsonObject = Record<string, unknown>;
 type RegistryOption = { value: string; label: string; visual?: string };
@@ -91,6 +92,13 @@ watch(
   },
   { immediate: true },
 );
+
+function referenceRegistry(reference?: string): string | undefined {
+  const definition = reference ? props.schema[reference] : undefined;
+  return definition && typeof definition !== 'string' && definition.type === 'registry'
+    ? definition.registry
+    : undefined;
+}
 
 function label(name: string): string {
   return name.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/^./, (value) => value.toUpperCase());
@@ -404,9 +412,20 @@ function closeRegistry(name: string): void {
         :disabled="readonly"
         @change="update(field.name, ($event.target as HTMLInputElement).checked)"
       />
+      <RegistryFieldReferenceInput
+        v-else-if="field.type === 'registry_field_reference'"
+        :registry="referenceRegistry(field.reference)"
+        :entry="field.reference ? parsed[field.reference] : undefined"
+        :property="field.property"
+        :model-value="parsed[field.name]"
+        :label="fieldLabels?.[field.name] ?? label(field.name)"
+        :readonly="readonly"
+        :optional="field.optional"
+        @update:model-value="update(field.name, $event)"
+      />
       <SelectInput
         v-else-if="field.type === 'enum'"
-        class="enum-select"
+        appearance="form"
         :disabled="readonly"
         :label="fieldLabels?.[field.name] ?? label(field.name)"
         :model-value="String(field.values?.findIndex((option) => option.value === parsed![field.name]) ?? -1)"
@@ -617,15 +636,6 @@ input:focus,
 select:focus {
   border-color: #fb7185;
   box-shadow: 0 0 0 3px rgba(251, 113, 133, 0.14);
-}
-.enum-select :deep(.trigger) {
-  padding: 8px 9px;
-  border-color: #3f3f46;
-  background: #18181b;
-}
-.enum-select :deep(.trigger:focus-within),
-.enum-select :deep(.trigger.open) {
-  border-color: #fb7185;
 }
 .distance-input {
   display: flex;
