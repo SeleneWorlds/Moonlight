@@ -1,0 +1,4 @@
+{
+  "name": "moonlight-rolls",
+  "description": "Random rolls with conditional pools, weighted entries and consumer-defined handlers."
+}

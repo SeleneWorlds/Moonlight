@@ -1,0 +1,84 @@
+{
+  "definition": {
+    "type": "object",
+    "properties": {
+      "conditions": {
+        "type": "array",
+        "valueType": {
+          "type": "object",
+          "properties": {
+            "type": "string",
+            "data": {
+              "type": "any",
+              "optional": true
+            }
+          }
+        },
+        "optional": true
+      },
+      "pools": {
+        "type": "array",
+        "valueType": {
+          "type": "object",
+          "properties": {
+            "rolls": {
+              "type": "integer",
+              "min": 0,
+              "optional": true
+            },
+            "conditions": {
+              "type": "array",
+              "valueType": {
+                "type": "object",
+                "properties": {
+                  "type": "string",
+                  "data": {
+                    "type": "any",
+                    "optional": true
+                  }
+                }
+              },
+              "optional": true
+            },
+            "entries": {
+              "type": "array",
+              "valueType": {
+                "type": "object",
+                "properties": {
+                  "type": "string",
+                  "label": {
+                    "type": "string",
+                    "optional": true
+                  },
+                  "weight": {
+                    "type": "number",
+                    "min": 0,
+                    "optional": true
+                  },
+                  "conditions": {
+                    "type": "array",
+                    "valueType": {
+                      "type": "object",
+                      "properties": {
+                        "type": "string",
+                        "data": {
+                          "type": "any",
+                          "optional": true
+                        }
+                      }
+                    },
+                    "optional": true
+                  },
+                  "data": {
+                    "type": "any",
+                    "optional": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
