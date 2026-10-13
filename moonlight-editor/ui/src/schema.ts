@@ -18,6 +18,8 @@ export type SchemaDefinition =
       values?: Array<{ value: unknown; label: string }>;
       registry?: string;
       coordinate?: string;
+      property?: string;
+      function?: string;
       properties?: Record<string, SchemaDefinition>;
       keyType?: SchemaDefinition;
       valueType?: SchemaDefinition;
@@ -43,6 +45,7 @@ export function defaultSchemaValue(definition: SchemaDefinition): unknown {
       return { include: [], exclude: [] };
     case 'coordinate':
       return { x: 0, y: 0, z: 0 };
+    case 'scripted_schema_lookup':
     case 'object':
     case 'map':
       return {};

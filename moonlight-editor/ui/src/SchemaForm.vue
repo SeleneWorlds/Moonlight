@@ -11,6 +11,7 @@ import ScriptInput from './ScriptInput.vue';
 import RangeInput from './RangeInput.vue';
 import AreaInput from './AreaInput.vue';
 import DirectionInput from './DirectionInput.vue';
+import ScriptedSchemaInput from './ScriptedSchemaInput.vue';
 
 type JsonObject = Record<string, unknown>;
 type RegistryOption = { value: string; label: string; visual?: string };
@@ -47,7 +48,8 @@ const fields = computed(() =>
     }))
     .sort(
       (a, b) =>
-        Number(['object', 'map', 'array'].includes(a.type)) - Number(['object', 'map', 'array'].includes(b.type)),
+        Number(['object', 'map', 'array', 'scripted_schema_lookup'].includes(a.type)) -
+        Number(['object', 'map', 'array', 'scripted_schema_lookup'].includes(b.type)),
     ),
 );
 const openRegistryField = ref<string | null>(null);
@@ -241,13 +243,26 @@ function closeRegistry(name: string): void {
 <template>
   <div v-if="parsed" class="schema-form">
     <component
-      :is="['object', 'map', 'array'].includes(field.type) ? 'details' : field.type === 'area' ? 'div' : 'label'"
+      :is="
+        ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type)
+          ? 'details'
+          : field.type === 'area'
+            ? 'div'
+            : 'label'
+      "
       v-for="field in fields"
       :key="field.name"
       class="field"
-      :class="{ coordinate: ['coordinate', 'range', 'object', 'map', 'array', 'any'].includes(field.type) }"
+      :class="{
+        coordinate: ['coordinate', 'range', 'object', 'map', 'array', 'scripted_schema_lookup', 'any'].includes(
+          field.type,
+        ),
+      }"
     >
-      <component :is="['object', 'map', 'array'].includes(field.type) ? 'summary' : 'span'" class="heading">
+      <component
+        :is="['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type) ? 'summary' : 'span'"
+        class="heading"
+      >
         {{ fieldLabels?.[field.name] ?? label(field.name) }}
         <small v-if="field.optional">optional</small>
         <button v-if="!readonly && field.optional && field.name in parsed" type="button" @click="remove(field.name)">
@@ -259,6 +274,18 @@ function closeRegistry(name: string): void {
         :value="parsed[field.name]"
         :readonly="readonly"
         @update-value="update(field.name, $event)"
+      />
+      <ScriptedSchemaInput
+        v-else-if="field.type === 'scripted_schema_lookup'"
+        :module="field.property ? String(parsed[field.property] ?? '') : ''"
+        :function-name="field.function"
+        :contents="objectContents(field.name)"
+        :registry-options="registryOptions"
+        :readonly="readonly"
+        @update-contents="updateObject(field.name, $event)"
+        @search-registry="(registry, query, lookup) => emit('searchRegistry', registry, query, lookup)"
+        @pick-coordinate="emit('pickCoordinate', `${field.name}.${$event}`)"
+        @pick-distance="emit('pickDistance', { ...$event, field: `${field.name}.${$event.field}` })"
       />
       <SchemaMap
         v-else-if="field.type === 'map' && field.keyType && field.valueType"
