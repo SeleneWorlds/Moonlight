@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
-import { ExternalLink } from '@lucide/vue';
+import { ExternalLink, Trash2 } from '@lucide/vue';
 import { defaultSchemaValue, type DistancePick, type SchemaDefinition } from './schema';
 import { useSelene } from './selene';
 import SchemaForm from './SchemaForm.vue';
@@ -38,7 +38,7 @@ watch(
       }
     }
   },
-  { immediate: true },
+  { immediate: true, deep: true },
 );
 
 watch(
@@ -64,6 +64,18 @@ function openRegistryEntry(key: string): void {
     selene.network.sendToServer('moonlight-editor:open-registry-entry', { registry: keyRegistry.value, value: key });
   }
 }
+const primitiveValue = computed(() => {
+  const definition = props.valueType;
+  const type = typeof definition === 'string' ? definition : definition.type;
+  if (type === 'enum' && typeof definition !== 'string') {
+    return (definition.values ?? []).every(
+      ({ value }) => value === null || ['string', 'number', 'boolean'].includes(typeof value),
+    );
+  }
+  return ['string', 'integer', 'number', 'boolean', 'enabled', 'distance', 'registry', 'script', 'Direction'].includes(
+    type,
+  );
+});
 const inlineProperties = computed(() => {
   const definition = props.valueType;
   return typeof definition !== 'string' &&
@@ -165,52 +177,138 @@ function valueLabel(value: unknown): string {
 
 <template>
   <div class="map">
-    <div v-for="(value, key) in entries" :key="key" class="entry">
-      <div class="entry-heading">
-        <span class="entry-key" :title="key">
-          <RegistryVisual v-if="entryOption(key)?.visual" :identifier="entryOption(key)!.visual!" />
-          <span>{{ entryLabel(key) }}</span>
-          <button
-            v-if="keyRegistry"
-            type="button"
-            class="open-registry-entry"
-            :disabled="!key"
-            :aria-label="`Open ${entryLabel(key)} registry entry in the form`"
-            title="Open registry entry in the form"
-            @click="openRegistryEntry(key)"
-          >
-            <ExternalLink :size="16" aria-hidden="true" />
-          </button>
-        </span>
-        <button :disabled="readonly" type="button" :aria-label="`Remove ${key}`" @click="remove(key)">Remove</button>
+    <table v-if="primitiveValue" class="entries" :class="{ 'registry-keys': keyRegistry }">
+      <thead>
+        <tr>
+          <th v-if="keyRegistry" scope="col" class="entry-preview"><span class="visually-hidden">Preview</span></th>
+          <th scope="col" class="key-column">Key</th>
+          <th scope="col">Value</th>
+          <th scope="col" class="entry-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="(value, key) in entries" :key="key">
+          <td v-if="keyRegistry" class="entry-preview">
+            <RegistryVisual v-if="entryOption(key)?.visual" :identifier="entryOption(key)!.visual!" />
+          </td>
+          <th scope="row" class="entry-heading">
+            <span class="entry-key" :title="key">
+              <span>{{ entryLabel(key) }}</span>
+            </span>
+          </th>
+          <td class="entry-value">
+            <SchemaForm
+              class="value-form"
+              hide-field-labels
+              :schema="{ value: valueType }"
+              :field-labels="{ value: valueLabel(value) }"
+              :contents="JSON.stringify({ value })"
+              :registry-options="registryOptions"
+              :readonly="readonly"
+              @update-contents="updateEntry(key, $event)"
+              @search-registry="(registry, query, lookup) => emit('searchRegistry', registry, query, lookup)"
+              @pick-coordinate="emit('pickCoordinate', `${key}${$event === 'value' ? '' : $event.slice(5)}`)"
+              @pick-distance="
+                emit('pickDistance', {
+                  ...$event,
+                  field: `${key}${$event.field === 'value' ? '' : $event.field.slice(5)}`,
+                })
+              "
+            />
+          </td>
+          <td class="entry-actions">
+            <div class="action-buttons">
+              <button
+                v-if="keyRegistry"
+                type="button"
+                class="open-registry-entry"
+                :disabled="!key"
+                :aria-label="`Open ${entryLabel(key)} registry entry in the form`"
+                title="Open registry entry in the form"
+                @click="openRegistryEntry(key)"
+              >
+                <ExternalLink :size="16" aria-hidden="true" />
+              </button>
+              <button
+                class="remove-entry"
+                :disabled="readonly"
+                type="button"
+                :aria-label="`Remove ${entryLabel(key)}`"
+                :title="`Remove ${entryLabel(key)}`"
+                @click="remove(key)"
+              >
+                <Trash2 :size="16" aria-hidden="true" />
+              </button>
+            </div>
+          </td>
+        </tr>
+        <tr v-if="Object.keys(entries).length === 0">
+          <td :colspan="keyRegistry ? 4 : 3" class="empty">No entries.</td>
+        </tr>
+      </tbody>
+    </table>
+    <template v-else>
+      <div v-for="(value, key) in entries" :key="key" class="entry">
+        <div class="card-heading">
+          <span class="entry-key" :title="key">
+            <RegistryVisual v-if="entryOption(key)?.visual" :identifier="entryOption(key)!.visual!" />
+            <span>{{ entryLabel(key) }}</span>
+          </span>
+          <div class="action-buttons">
+            <button
+              v-if="keyRegistry"
+              type="button"
+              class="open-registry-entry"
+              :disabled="!key"
+              :aria-label="`Open ${entryLabel(key)} registry entry in the form`"
+              title="Open registry entry in the form"
+              @click="openRegistryEntry(key)"
+            >
+              <ExternalLink :size="16" aria-hidden="true" />
+            </button>
+            <button
+              class="remove-entry"
+              :disabled="readonly"
+              type="button"
+              :aria-label="`Remove ${entryLabel(key)}`"
+              :title="`Remove ${entryLabel(key)}`"
+              @click="remove(key)"
+            >
+              <Trash2 :size="16" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+        <SchemaForm
+          v-if="inlineProperties"
+          class="inline-value"
+          :schema="inlineProperties"
+          :contents="inlineContents(value)"
+          :registry-options="registryOptions"
+          :readonly="readonly"
+          @update-contents="updateInlineEntry(key, $event)"
+          @search-registry="(registry, query, lookup) => emit('searchRegistry', registry, query, lookup)"
+          @pick-coordinate="emit('pickCoordinate', `${key}.${$event}`)"
+          @pick-distance="emit('pickDistance', { ...$event, field: `${key}.${$event.field}` })"
+        />
+        <SchemaForm
+          v-else
+          :schema="{ value: valueType }"
+          :field-labels="{ value: valueLabel(value) }"
+          :contents="JSON.stringify({ value })"
+          :registry-options="registryOptions"
+          :readonly="readonly"
+          @update-contents="updateEntry(key, $event)"
+          @search-registry="(registry, query, lookup) => emit('searchRegistry', registry, query, lookup)"
+          @pick-coordinate="emit('pickCoordinate', `${key}${$event === 'value' ? '' : $event.slice(5)}`)"
+          @pick-distance="
+            emit('pickDistance', {
+              ...$event,
+              field: `${key}${$event.field === 'value' ? '' : $event.field.slice(5)}`,
+            })
+          "
+        />
       </div>
-      <SchemaForm
-        v-if="inlineProperties"
-        class="inline-value"
-        :schema="inlineProperties"
-        :contents="inlineContents(value)"
-        :registry-options="registryOptions"
-        :readonly="readonly"
-        @update-contents="updateInlineEntry(key, $event)"
-        @search-registry="(registry, query, lookup) => emit('searchRegistry', registry, query, lookup)"
-        @pick-coordinate="emit('pickCoordinate', `${key}.${$event}`)"
-        @pick-distance="emit('pickDistance', { ...$event, field: `${key}.${$event.field}` })"
-      />
-      <SchemaForm
-        v-else
-        :schema="{ value: valueType }"
-        :field-labels="{ value: valueLabel(value) }"
-        :contents="JSON.stringify({ value })"
-        :registry-options="registryOptions"
-        :readonly="readonly"
-        @update-contents="updateEntry(key, $event)"
-        @search-registry="(registry, query, lookup) => emit('searchRegistry', registry, query, lookup)"
-        @pick-coordinate="emit('pickCoordinate', `${key}${$event === 'value' ? '' : $event.slice(5)}`)"
-        @pick-distance="
-          emit('pickDistance', { ...$event, field: `${key}${$event.field === 'value' ? '' : $event.field.slice(5)}` })
-        "
-      />
-    </div>
+    </template>
     <div v-if="!readonly" class="add-entry">
       <SchemaForm
         :key="contents"
@@ -232,12 +330,63 @@ function valueLabel(value: unknown): string {
   display: grid;
   gap: 12px;
 }
+.entries {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  color: #d4d4d8;
+}
+.entries th,
+.entries td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #3f3f46;
+  text-align: left;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+.entries thead th {
+  color: #a1a1aa;
+  font-size: 12px;
+  font-weight: 650;
+  background: #18181b;
+}
+.entries .key-column {
+  width: 30%;
+}
+.entries .entry-preview {
+  width: 44px;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.entries .entry-actions {
+  width: 60px;
+  text-align: right;
+}
+.entries.registry-keys .entry-actions {
+  width: 84px;
+}
+.action-buttons {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+.entry-heading {
+  font-weight: 500;
+}
 .entry {
   border: 1px solid #3f3f46;
   border-radius: 6px;
   overflow: visible;
 }
-.entry-heading {
+.card-heading {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -245,10 +394,17 @@ function valueLabel(value: unknown): string {
   padding: 10px 12px;
   overflow-wrap: anywhere;
 }
-.inline-value {
+.entry > .inline-value {
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   overflow: visible;
   padding: 12px;
+}
+.entry-value > .value-form {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0;
+}
+.empty {
+  color: #71717a;
 }
 .entry-key {
   display: flex;
@@ -272,6 +428,13 @@ button {
 button:disabled {
   opacity: 0.5;
   cursor: default;
+}
+.remove-entry {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
 }
 .open-registry-entry {
   display: grid;

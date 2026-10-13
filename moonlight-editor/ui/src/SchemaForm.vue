@@ -22,6 +22,7 @@ const props = defineProps<{
   contents: string;
   registryOptions: Record<string, RegistryOption[]>;
   fieldLabels?: Record<string, string>;
+  hideFieldLabels?: boolean;
 }>();
 const emit = defineEmits<{
   updateContents: [contents: string];
@@ -260,10 +261,18 @@ function closeRegistry(name: string): void {
       }"
     >
       <component
+        v-if="
+          !hideFieldLabels ||
+          field.optional ||
+          ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type)
+        "
         :is="['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type) ? 'summary' : 'span'"
         class="heading"
       >
-        {{ fieldLabels?.[field.name] ?? label(field.name) }}
+        <template
+          v-if="!hideFieldLabels || ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type)"
+          >{{ fieldLabels?.[field.name] ?? label(field.name) }}</template
+        >
         <small v-if="field.optional">optional</small>
         <button v-if="!readonly && field.optional && field.name in parsed" type="button" @click="remove(field.name)">
           Clear
