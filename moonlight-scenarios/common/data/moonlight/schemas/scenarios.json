@@ -1,0 +1,52 @@
+{
+  "definition": {
+    "type": "object",
+    "properties": {
+      "event": {
+        "type": "string",
+        "optional": true
+      },
+      "conditions": {
+        "type": "array",
+        "optional": true,
+        "valueType": {
+          "type": "object",
+          "properties": {
+            "type": "string",
+            "data": {
+              "type": "any",
+              "optional": true
+            }
+          }
+        }
+      },
+      "actions": {
+        "type": "array",
+        "valueType": {
+          "type": "object",
+          "properties": {
+            "type": "string",
+            "data": {
+              "type": "any",
+              "optional": true
+            },
+            "conditions": {
+              "type": "array",
+              "optional": true,
+              "valueType": {
+                "type": "object",
+                "properties": {
+                  "type": "string",
+                  "data": {
+                    "type": "any",
+                    "optional": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

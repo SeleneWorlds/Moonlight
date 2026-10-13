@@ -1,0 +1,4 @@
+{
+  "name": "moonlight-scenarios",
+  "description": "Data-driven event, condition and action scenarios with consumer-defined handlers."
+}
