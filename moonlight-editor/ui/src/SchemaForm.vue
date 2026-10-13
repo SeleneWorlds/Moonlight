@@ -26,6 +26,7 @@ const props = defineProps<{
   registryOptions: Record<string, RegistryOption[]>;
   fieldLabels?: Record<string, string>;
   hideFieldLabels?: boolean;
+  expandedFields?: string[];
 }>();
 const emit = defineEmits<{
   updateContents: [contents: string];
@@ -138,6 +139,11 @@ function updateObject(name: string, contents: string): void {
 function arrayContents(name: string): string {
   const value = parsed.value?.[name];
   return JSON.stringify(Array.isArray(value) ? value : []);
+}
+
+function arrayItemCount(name: string): number {
+  const value = parsed.value?.[name];
+  return Array.isArray(value) ? value.length : 0;
 }
 
 function numberValue(name: string, event: Event): void {
@@ -270,7 +276,9 @@ function closeRegistry(name: string): void {
       "
       v-for="field in fields"
       :key="field.name"
-      :open="isNestedSection(field) && nestedSectionCount === 1 ? true : undefined"
+      :open="
+        isNestedSection(field) && (nestedSectionCount === 1 || expandedFields?.includes(field.name)) ? true : undefined
+      "
       class="field"
       :class="{
         coordinate: ['coordinate', 'range', 'object', 'map', 'array', 'scripted_schema_lookup', 'any'].includes(
@@ -296,6 +304,7 @@ function closeRegistry(name: string): void {
           v-if="!hideFieldLabels || ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type)"
           >{{ fieldLabels?.[field.name] ?? label(field.name) }}</template
         >
+        <span v-if="field.type === 'array'" class="array-item-count">({{ arrayItemCount(field.name) }} items)</span>
         <small v-if="field.optional">optional</small>
         <button
           v-if="
@@ -632,6 +641,9 @@ function closeRegistry(name: string): void {
   color: #fda4af;
   background: none;
   cursor: pointer;
+}
+details.field[open] > summary > .array-item-count {
+  display: none;
 }
 details.field > summary {
   cursor: pointer;

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
+import { Trash2 } from '@lucide/vue';
 import SchemaForm from './SchemaForm.vue';
 import RegistryVisual from './RegistryVisual.vue';
 import { resolveSchemaField, defaultSchemaValue, type SchemaDefinition, type DistancePick } from './schema';
@@ -246,12 +247,15 @@ function settings(schema: Record<string, SchemaDefinition>, exclude: string): Re
       @click="$event.target === modal && closeModal()"
     >
       <div class="modal-body">
-        <button type="button" class="close-modal" aria-label="Close editor" @click="closeModal">✕</button>
+        <header class="modal-header">
+          <strong v-if="selected && selection">Edit entry</strong>
+          <strong v-else-if="settingsTarget === 'rolls'">Roll conditions and settings</strong>
+          <strong v-else-if="typeof settingsTarget === 'number' && pools[settingsTarget]">
+            {{ poolName(pools[settingsTarget]!, settingsTarget) }} settings
+          </strong>
+          <button type="button" class="close-modal" aria-label="Close editor" @click="closeModal">✕</button>
+        </header>
         <section v-if="selected && selection">
-          <header>
-            <strong>Edit entry</strong><small>{{ poolName(pools[selection.pool]!, selection.pool) }}</small
-            ><button v-if="!readonly" type="button" @click="removeEntry">Remove entry</button>
-          </header>
           <SchemaForm
             class="detail"
             :schema="entrySchema"
@@ -259,15 +263,20 @@ function settings(schema: Record<string, SchemaDefinition>, exclude: string): Re
             :registry-options="registryOptions"
             :readonly="readonly"
             :field-labels="{ type: 'Outcome type' }"
+            :expanded-fields="['data']"
             @update-contents="updateEntry"
             @search-registry="(registry, query, lookup) => emit('searchRegistry', registry, query, lookup)"
             @pick-coordinate="pickCoordinate(path($event))"
             @pick-distance="pickDistance({ ...$event, field: path($event.field) })"
           />
+          <footer v-if="!readonly" class="delete-actions">
+            <button type="button" aria-label="Delete entry" title="Delete entry" @click="removeEntry">
+              <Trash2 :size="18" aria-hidden="true" />
+            </button>
+          </footer>
         </section>
 
         <section v-else-if="settingsTarget === 'rolls'">
-          <header><strong>Roll conditions and settings</strong></header>
           <SchemaForm
             class="detail"
             :schema="settings(schema, 'pools')"
@@ -281,9 +290,6 @@ function settings(schema: Record<string, SchemaDefinition>, exclude: string): Re
           />
         </section>
         <section v-else-if="typeof settingsTarget === 'number' && pools[settingsTarget]">
-          <header>
-            <strong>{{ poolName(pools[settingsTarget]!, settingsTarget) }} settings</strong>
-          </header>
           <SchemaForm
             class="detail"
             :schema="settings(poolSchema, 'entries')"
@@ -295,16 +301,19 @@ function settings(schema: Record<string, SchemaDefinition>, exclude: string): Re
             @pick-coordinate="pickCoordinate(`pools.${settingsTarget}.${$event}`)"
             @pick-distance="pickDistance({ ...$event, field: `pools.${settingsTarget}.${$event.field}` })"
           />
-          <button
-            v-if="!readonly"
-            type="button"
-            @click="
-              save({ ...value, pools: pools.filter((_, i) => i !== settingsTarget) });
-              closeModal();
-            "
-          >
-            Remove pool
-          </button>
+          <footer v-if="!readonly" class="delete-actions">
+            <button
+              type="button"
+              aria-label="Delete pool"
+              title="Delete pool"
+              @click="
+                save({ ...value, pools: pools.filter((_, i) => i !== settingsTarget) });
+                closeModal();
+              "
+            >
+              <Trash2 :size="18" aria-hidden="true" />
+            </button>
+          </footer>
         </section>
       </div>
     </dialog>
@@ -411,6 +420,17 @@ summary::-webkit-details-marker {
   grid-template-columns: 1fr;
   padding: 16px 0 0;
 }
+.delete-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.delete-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+}
 </style>
 
 <style scoped>
@@ -431,11 +451,11 @@ summary::-webkit-details-marker {
 }
 .modal-body {
   position: relative;
-  padding-top: 38px;
+}
+.modal-header {
+  justify-content: space-between;
 }
 .close-modal {
-  position: absolute;
-  top: 0;
-  right: 0;
+  margin-left: auto;
 }
 </style>
