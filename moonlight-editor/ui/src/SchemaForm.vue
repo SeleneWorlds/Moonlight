@@ -12,6 +12,7 @@ import RangeInput from './RangeInput.vue';
 import AreaInput from './AreaInput.vue';
 import DirectionInput from './DirectionInput.vue';
 import ScriptedSchemaInput from './ScriptedSchemaInput.vue';
+import SelectInput from './SelectInput.vue';
 
 type JsonObject = Record<string, unknown>;
 type RegistryOption = { value: string; label: string; visual?: string };
@@ -403,23 +404,21 @@ function closeRegistry(name: string): void {
         :disabled="readonly"
         @change="update(field.name, ($event.target as HTMLInputElement).checked)"
       />
-      <select
-        :disabled="readonly"
+      <SelectInput
         v-else-if="field.type === 'enum'"
-        :value="parsed[field.name]"
-        :required="!field.optional"
-        @change="
-          update(
-            field.name,
-            field.values?.[($event.target as HTMLSelectElement).selectedIndex - (field.optional ? 1 : 0)]?.value,
-          )
+        class="enum-select"
+        :disabled="readonly"
+        :label="fieldLabels?.[field.name] ?? label(field.name)"
+        :model-value="String(field.values?.findIndex((option) => option.value === parsed![field.name]) ?? -1)"
+        :options="[...(field.optional ? ['-1'] : []), ...(field.values ?? []).map((_, index) => String(index))]"
+        :option-labels="
+          Object.fromEntries([
+            ['-1', field.optional ? 'None' : ''],
+            ...(field.values ?? []).map((option, index) => [String(index), option.label]),
+          ])
         "
-      >
-        <option v-if="field.optional" :value="undefined">None</option>
-        <option v-for="option in field.values" :key="String(option.value)" :value="option.value">
-          {{ option.label }}
-        </option>
-      </select>
+        @update:model-value="update(field.name, field.values?.[Number($event)]?.value)"
+      />
       <RangeInput
         :readonly="readonly"
         v-else-if="field.type === 'range'"
@@ -618,6 +617,15 @@ input:focus,
 select:focus {
   border-color: #fb7185;
   box-shadow: 0 0 0 3px rgba(251, 113, 133, 0.14);
+}
+.enum-select :deep(.trigger) {
+  padding: 8px 9px;
+  border-color: #3f3f46;
+  background: #18181b;
+}
+.enum-select :deep(.trigger:focus-within),
+.enum-select :deep(.trigger.open) {
+  border-color: #fb7185;
 }
 .distance-input {
   display: flex;

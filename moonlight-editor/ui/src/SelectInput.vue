@@ -2,7 +2,12 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue';
 import { Check, ChevronDown } from '@lucide/vue';
 
-const props = defineProps<{ options: string[]; label: string }>();
+const props = defineProps<{
+  options: string[];
+  label: string;
+  optionLabels?: Record<string, string>;
+  disabled?: boolean;
+}>();
 const value = defineModel<string>({ required: true });
 const emit = defineEmits<{ change: [] }>();
 const id = useId();
@@ -12,8 +17,12 @@ const open = ref(false);
 const active = ref(-1);
 const query = ref('');
 const filteredOptions = computed(() =>
-  props.options.filter((option) => option.toLowerCase().includes(query.value.trim().toLowerCase())),
+  props.options.filter((option) => optionLabel(option).toLowerCase().includes(query.value.trim().toLowerCase())),
 );
+
+function optionLabel(option: string): string {
+  return props.optionLabels?.[option] ?? option;
+}
 
 function close(): void {
   open.value = false;
@@ -21,7 +30,7 @@ function close(): void {
 }
 
 function show(): void {
-  if (open.value || !props.options.length) {
+  if (props.disabled || open.value || !props.options.length) {
     return;
   }
   active.value = Math.max(0, props.options.indexOf(value.value));
@@ -83,21 +92,21 @@ onUnmounted(() => document.removeEventListener('pointerdown', closeOutside));
 <template>
   <!-- Stop internal events from being retargeted to the closed editor shadow host. -->
   <div ref="root" class="select-input" @pointerdown.stop>
-    <div class="trigger" :class="{ open, disabled: !options.length }">
+    <div class="trigger" :class="{ open, disabled: disabled || !options.length }">
       <input
         type="text"
         role="combobox"
         autocomplete="off"
         spellcheck="false"
         aria-autocomplete="list"
-        :value="open ? query : value"
+        :value="open ? query : optionLabel(value)"
         :placeholder="`Search ${label.toLowerCase()}…`"
         aria-haspopup="listbox"
         :aria-label="label"
         :aria-expanded="open"
         :aria-controls="id"
         :aria-activedescendant="open && active >= 0 ? `${id}-${active}` : undefined"
-        :disabled="!options.length"
+        :disabled="disabled || !options.length"
         @focus="show"
         @click="show"
         @input="search"
@@ -118,7 +127,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', closeOutside));
         @pointermove="active = index"
         @click="select(option)"
       >
-        <span>{{ option }}</span>
+        <span>{{ optionLabel(option) }}</span>
         <Check v-if="value === option" :size="14" aria-hidden="true" />
       </div>
     </div>
