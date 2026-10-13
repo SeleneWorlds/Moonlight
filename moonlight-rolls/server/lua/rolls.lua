@@ -28,22 +28,73 @@ function Rolls:new(options)
     return setmetatable({
         _handlers = {},
         _conditions = {},
+        _typeSchemas = {},
+        _conditionSchemas = {},
         _random = options.random or math.random
     }, self)
 end
 
-function Rolls:registerType(entryType, handler)
+local function schemaDefinition(schema)
+    assert(schema == nil or (type(schema) == "string" and schema ~= "")
+        or (type(schema) == "table" and type(schema.type) == "string" and schema.type ~= ""),
+        "Schema must be a type name or property definition")
+end
+
+function Rolls:registerType(entryType, handler, schema)
     name(entryType)
     assert(type(handler) == "function", "Entry handler must be a function")
+    schemaDefinition(schema)
     self._handlers[entryType] = handler
+    self._typeSchemas[entryType] = schema
     return self
 end
 
-function Rolls:registerCondition(conditionType, handler)
+function Rolls:registerCondition(conditionType, handler, schema)
     name(conditionType)
     assert(type(handler) == "function", "Condition handler must be a function")
+    schemaDefinition(schema)
     self._conditions[conditionType] = handler
+    self._conditionSchemas[conditionType] = schema
     return self
+end
+
+-- Return a fresh editor definition for this instance's registered payload types.
+local function copy(value)
+    if type(value) ~= "table" then return value end
+    local result = {}
+    for key, child in pairs(value) do result[key] = copy(child) end
+    return result
+end
+
+local function typedSchema(handlers, schemas, properties)
+    local names, values, variants = {}, {}, {}
+    for kind in pairs(handlers) do names[#names + 1] = kind end
+    table.sort(names)
+    for _, kind in ipairs(names) do
+        values[#values + 1] = { value = kind, label = kind }
+        variants[kind] = copy(schemas[kind] or "any")
+    end
+    properties.type = { type = "enum", values = values }
+    properties.data = { type = "schema_lookup", property = "type", variants = variants, optional = true }
+    return { type = "object", properties = properties }
+end
+
+function Rolls:schema()
+    local conditions = { type = "array", optional = true,
+        valueType = typedSchema(self._conditions, self._conditionSchemas, {}) }
+    local entry = typedSchema(self._handlers, self._typeSchemas, {
+        label = { type = "string", optional = true },
+        weight = { type = "number", min = 0, optional = true },
+        conditions = copy(conditions)
+    })
+    return { type = "object", properties = {
+        conditions = conditions,
+        pools = { type = "array", valueType = { type = "object", properties = {
+            rolls = { type = "integer", min = 0, optional = true },
+            conditions = copy(conditions),
+            entries = { type = "array", valueType = entry }
+        } } }
+    } }
 end
 
 local function validateConditions(self, conditions)

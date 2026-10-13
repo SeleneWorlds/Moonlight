@@ -105,4 +105,32 @@ fixed:registerType("value", function() error("Handler failure") end)
 assert(not pcall(function() fixed:roll({ pools = { { entries = { a } } } }) end))
 assert(not pcall(function() fixed:roll({ conditions = { function() error("Condition failure") end }, pools = {} }) end))
 assert(Rolls:new():validate({ pools = {} }))
+-- Editor schemas cover every condition location, isolate instances, and replace metadata.
+local editor = Rolls:new()
+local payload = { type = "object", properties = { amount = "integer" } }
+assert(editor:registerType("z", function() end, payload) == editor)
+editor:registerType("a", function() end)
+assert(editor:registerCondition("level", function() return true end, "integer") == editor)
+local schema = editor:schema()
+local pool = schema.properties.pools.valueType.properties
+local entry = pool.entries.valueType.properties
+assert(entry.type.values[1].value == "a" and entry.type.values[2].value == "z")
+assert(entry.data.variants.a == "any" and entry.data.variants.z.properties.amount == "integer")
+for _, conditions in ipairs({ schema.properties.conditions, pool.conditions, entry.conditions }) do
+    assert(conditions.valueType.properties.data.variants.level == "integer")
+end
+entry.data.variants.z.properties.amount = "boolean"
+assert(payload.properties.amount == "integer")
+assert(editor:schema().properties.pools.valueType.properties.entries.valueType.properties
+    .data.variants.z.properties.amount == "integer")
+assert(#Rolls:new():schema().properties.conditions.valueType.properties.type.values == 0)
+editor:registerType("z", function() end)
+editor:registerCondition("level", function() return true end)
+schema = editor:schema()
+assert(schema.properties.pools.valueType.properties.entries.valueType.properties.data.variants.z == "any")
+assert(schema.properties.conditions.valueType.properties.data.variants.level == "any")
+for _, invalidSchema in ipairs({ false, 4, {}, { type = 4 }, "" }) do
+    assert(not pcall(function() editor:registerType("bad", function() end, invalidSchema) end))
+    assert(not pcall(function() editor:registerCondition("bad", function() end, invalidSchema) end))
+end
 print("moonlight-rolls tests passed")

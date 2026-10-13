@@ -46,10 +46,6 @@
                 "type": "object",
                 "properties": {
                   "type": "string",
-                  "label": {
-                    "type": "string",
-                    "optional": true
-                  },
                   "weight": {
                     "type": "number",
                     "min": 0,

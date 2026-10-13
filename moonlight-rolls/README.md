@@ -3,7 +3,10 @@
 Require `moonlight-rolls.server.lua.rolls` and create a roller with `Rolls:new()`.
 Each instance has its own entry and condition handlers. There are no built-in
 entry types: consumers register them with `roller:registerType(type, handler)`.
-Registering the same type again replaces its handler.
+Both registration methods accept an optional third argument describing the `data`
+payload using a Moonlight Editor type name or property definition. Registering
+the same type again replaces its handler and schema. Schemas describe editor
+controls; they do not add runtime payload validation.
 
 The bundle also provides the shared `moonlight:rolls` type in the
 `selene:schemas` registry. Script schema providers can return
@@ -11,17 +14,26 @@ The bundle also provides the shared `moonlight:rolls` type in the
 The shared schema exposes pools, roll counts, conditions, entry types, weights,
 optional labels, and `data` payloads. Store consumer-specific entry and condition
 fields inside `data` when using this schema; handlers receive the complete entry
-or condition and can read its payload. Typed payloads are edited as JSON.
+or condition and can read its payload. The shared schema edits payloads as JSON.
+To use registered schemas and type dropdowns, return the instance schema from
+your script provider: `return { herbs = roller:schema() }`. The editor selects
+the payload controls using each entry or condition's `type`, including conditions
+on definitions, pools, and entries. Types without schemas retain JSON controls.
+Schemas are instance-local, and each `schema()` call returns a fresh definition.
 
 ```lua
 local Rolls = require("moonlight-rolls.server.lua.rolls")
 local roller = Rolls:new()
 roller:registerType("item", function(entry, context)
     return context.inventory:addItem(entry.data.item)
-end)
+end, { type = "object", properties = { item = "any" } })
 roller:registerCondition("level", function(condition, context)
     return context.level >= condition.data.min
-end)
+end, { type = "object", properties = { min = { type = "integer", min = 0 } } })
+
+local function schema()
+    return { herbs = roller:schema() }
+end
 
 local definition = {
     pools = {
