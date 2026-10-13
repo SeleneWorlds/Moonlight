@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Copy, FilePlus, Pipette } from '@lucide/vue';
 import type { DistancePick, SchemaDefinition } from './schema';
 import SchemaForm from './SchemaForm.vue';
+import SelectInput from './SelectInput.vue';
 
 interface ProjectFile {
   path: string;
@@ -268,18 +269,19 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
     <section class="project">
       <aside class="browser">
         <div class="browser-content">
-          <label class="bundle-picker">
+          <div class="bundle-picker">
             <span>Bundle</span>
-            <select v-model="selectedBundle" :disabled="bundles.length === 0" @change="emit('selectBundle')">
-              <option v-for="bundle in bundles" :key="bundle" :value="bundle">{{ bundle }}</option>
-            </select>
-          </label>
-          <label class="bundle-picker">
+            <SelectInput v-model="selectedBundle" :options="bundles" label="Bundle" @change="emit('selectBundle')" />
+          </div>
+          <div class="bundle-picker">
             <span>Registry</span>
-            <select v-model="selectedRegistry" :disabled="registries.length === 0" @change="emit('requestProject')">
-              <option v-for="registry in registries" :key="registry" :value="registry">{{ registry }}</option>
-            </select>
-          </label>
+            <SelectInput
+              v-model="selectedRegistry"
+              :options="registries"
+              label="Registry"
+              @change="emit('requestProject')"
+            />
+          </div>
           <div class="file-search">
             <label class="bundle-picker">
               <span>Search</span>
