@@ -12,6 +12,7 @@ export type SchemaDefinition =
   | string
   | {
       type: string;
+      editor?: string;
       optional?: boolean;
       min?: number;
       max?: number;

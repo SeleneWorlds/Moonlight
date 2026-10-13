@@ -16,6 +16,7 @@ local definitions = {
     ["test:pool"] = { type = "object", properties = { rolls = "integer" } },
     ["test:cycle"] = { type = "object", properties = { nested = "test:cycle" } },
 }
+definitions["moonlight:rolls"] = definitions["test:rolls"]
 package.loaded["selene.registries"].findByName = function(registry, name)
     assert(registry == "selene:schemas")
     if definitions[name] then return { getField = function(_, field)
@@ -37,7 +38,7 @@ package.preload["test.scripted-schema"] = function()
         broken = function() error("provider failed") end,
         invalid = function() return "invalid" end,
         invalidProperty = function() return { title = 5 } end,
-        named = function() return { herbs = "test:rolls", optional = { type = "test:pool", optional = true } } end,
+        named = function() return { herbs = "moonlight:rolls", optional = { type = "test:pool", optional = true } } end,
         variants = function() return { data = { type = "schema_lookup", property = "type",
             variants = { item = "test:pool" } } } end,
         unknown = function() return { herbs = "test:missing" } end,
@@ -57,6 +58,8 @@ assert(request("custom").schema.title == "string")
 assert(request("variants").schema.data.variants.item.properties.rolls == "integer")
 local named = request("named").schema
 assert(named.herbs.type == "object" and named.herbs.properties.pools.valueType.properties.rolls == "integer")
+assert(named.herbs.editor == "moonlight:rolls")
+assert(definitions["moonlight:rolls"].editor == nil)
 assert(named.optional.optional == true and named.optional.properties.rolls == "integer")
 assert(definitions["test:rolls"].properties.pools.valueType == "test:pool")
 for _, functionName in ipairs({ "broken", "invalid", "invalidProperty", "missing", "unknown", "cycle" }) do

@@ -5,6 +5,7 @@ import { resolveSchemaField, type DistancePick, type SchemaDefinition } from './
 import { useSelene, type Coordinate } from './selene';
 import RegistryVisual from './RegistryVisual.vue';
 import SchemaMap from './SchemaMap.vue';
+import RollsInput from './RollsInput.vue';
 import SchemaArray from './SchemaArray.vue';
 import JsonInput from './JsonInput.vue';
 import ScriptInput from './ScriptInput.vue';
@@ -258,9 +259,9 @@ function closeRegistry(name: string): void {
   <div v-if="parsed" class="schema-form">
     <component
       :is="
-        ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type)
+        ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type) && field.editor !== 'moonlight:rolls'
           ? 'details'
-          : field.type === 'area'
+          : field.editor === 'moonlight:rolls' || field.type === 'area'
             ? 'div'
             : 'label'
       "
@@ -280,7 +281,12 @@ function closeRegistry(name: string): void {
           field.optional ||
           ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type)
         "
-        :is="['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type) ? 'summary' : 'span'"
+        :is="
+          ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type) &&
+          field.editor !== 'moonlight:rolls'
+            ? 'summary'
+            : 'span'
+        "
         class="heading"
       >
         <template
@@ -292,8 +298,19 @@ function closeRegistry(name: string): void {
           Clear
         </button>
       </component>
+      <RollsInput
+        v-if="field.editor === 'moonlight:rolls' && field.properties"
+        :schema="field.properties"
+        :contents="objectContents(field.name)"
+        :registry-options="registryOptions"
+        :readonly="readonly"
+        @update-contents="updateObject(field.name, $event)"
+        @search-registry="(registry, query, lookup) => emit('searchRegistry', registry, query, lookup)"
+        @pick-coordinate="emit('pickCoordinate', `${field.name}.${$event}`)"
+        @pick-distance="emit('pickDistance', { ...$event, field: `${field.name}.${$event.field}` })"
+      />
       <AreaInput
-        v-if="field.type === 'area'"
+        v-else-if="field.type === 'area'"
         :value="parsed[field.name]"
         :readonly="readonly"
         @update-value="update(field.name, $event)"

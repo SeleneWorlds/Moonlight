@@ -392,6 +392,7 @@ local function resolveSchema(definition, resolving)
         resolving[kind] = true
         resolved = resolveSchema(assert(entry:getField("definition"), "Missing schema definition: " .. kind), resolving)
         resolving[kind] = nil
+        if kind == "moonlight:rolls" then resolved.editor = "moonlight:rolls" end
     elseif type(definition) == "string" then
         return definition
     end
