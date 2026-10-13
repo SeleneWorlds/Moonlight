@@ -81,6 +81,18 @@ function requestEditor(operation: string, payload: Record<string, unknown> = {})
           deliver('file', { ...data, draft: true });
           deliver('file-created');
           break;
+        case 'rename-file': {
+          const oldPath = payload.path as string;
+          const newPath = data.path as string;
+          const entry = entries.value[oldPath];
+          if (entry) {
+            entries.value[newPath] = entry;
+            delete entries.value[oldPath];
+          }
+          deliver('file', data);
+          requestProject();
+          break;
+        }
         case 'save-file':
           deliver('file-saved');
           break;
@@ -526,6 +538,26 @@ function createFile(name: string, duplicate = false): void {
   });
 }
 
+function renameFile(path: string, name: string): void {
+  if (fileLoading.value || projectLoading.value) {
+    return;
+  }
+  const newPath = `${path.slice(0, path.lastIndexOf('/') + 1)}${name}.json`;
+  if (entries.value[newPath]) {
+    setStatus('An entry with this name already exists.', true);
+    return;
+  }
+  if (entries.value[path]?.draft) {
+    entries.value[newPath] = entries.value[path]!;
+    delete entries.value[path];
+    receiveFile({ path: newPath, contents: entries.value[newPath]!.contents, draft: true });
+    return;
+  }
+  fileLoading.value = true;
+  setStatus('Renaming entry…');
+  requestEditor('rename-file', { path, name });
+}
+
 function save(): void {
   if (!selectedPath.value || !isDirty.value || !resourcePermissions.value.apply) {
     return;
@@ -729,7 +761,8 @@ function receiveBundleRegistries(payload: ClientNetworkPayload): void {
     return;
   }
   bundleRegistries.value[payload.bundle] = payload.registries
-    .filter((registry): registry is string => typeof registry === 'string').sort();
+    .filter((registry): registry is string => typeof registry === 'string')
+    .sort();
   if (payload.bundle !== selectedBundle.value) {
     return;
   }
@@ -1204,7 +1237,9 @@ onBeforeUnmount(() => {
   <div v-if="enabled && !visible && hoveredCoordinate" class="hovered-coordinate" aria-label="Hovered coordinates">
     X: {{ hoveredCoordinate.x }} · Y: {{ hoveredCoordinate.y }} · Z: {{ hoveredCoordinate.z }}
   </div>
-  <ContextMenu v-if="enabled && !visible && !inlineForm && !pickingDistance && !pickingCoordinateField && !pickingRegistry" />
+  <ContextMenu
+    v-if="enabled && !visible && !inlineForm && !pickingDistance && !pickingCoordinateField && !pickingRegistry"
+  />
   <nav v-if="enabled && !visible && !pickingDistance" class="actions" aria-label="Editor actions">
     <button
       type="button"
@@ -1240,12 +1275,7 @@ onBeforeUnmount(() => {
       <Grid2X2 :size="16" aria-hidden="true" />
       Toggle Grid
     </button>
-    <button
-      type="button"
-      title="Enable or disable scene lighting"
-      :aria-pressed="showLights"
-      @click="toggleLights"
-    >
+    <button type="button" title="Enable or disable scene lighting" :aria-pressed="showLights" @click="toggleLights">
       <Lightbulb :size="16" aria-hidden="true" />
       Toggle Lights
     </button>
@@ -1259,8 +1289,8 @@ onBeforeUnmount(() => {
       Toggle Gizmos
     </button>
     <button type="button" @click="setProjectVisible(true)">
-        <Database :size="16" aria-hidden="true" />
-        Registry Editor
+      <Database :size="16" aria-hidden="true" />
+      Registry Editor
     </button>
   </nav>
   <div v-if="enabled && showGizmos && !pickerActive" class="gizmos">
@@ -1351,6 +1381,7 @@ onBeforeUnmount(() => {
     @pick-resource="startRegistryPicker"
     @create-file="createFile"
     @duplicate-file="createFile($event, true)"
+    @rename-file="renameFile"
     @save="save"
     @discard-local="discardLocalChanges"
     @persist="persistChanges"
@@ -1614,5 +1645,3 @@ onBeforeUnmount(() => {
   display: block;
 }
 </style>
-
-

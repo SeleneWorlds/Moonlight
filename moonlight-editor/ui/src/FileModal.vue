@@ -75,6 +75,7 @@ const emit = defineEmits<{
   pickResource: [];
   createFile: [name: string];
   duplicateFile: [name: string];
+  renameFile: [path: string, name: string];
 }>();
 
 const createDialog = ref<HTMLDialogElement | null>(null);
@@ -82,6 +83,19 @@ const entryName = ref('');
 const createSubmitted = ref(false);
 const createAttempted = ref(false);
 const duplicating = ref(false);
+const renamingPath = ref<string | null>(null);
+const contextPath = ref<string | null>(null);
+
+function openRenameDialog(path: string): void {
+  openCreateDialog();
+  renamingPath.value = path;
+  entryName.value =
+    path
+      .split('/')
+      .pop()
+      ?.replace(/\.json$/, '') ?? '';
+  contextPath.value = null;
+}
 const entryNameError = computed(() => {
   const name = entryName.value.trim();
   if (!name) {
@@ -90,13 +104,21 @@ const entryNameError = computed(() => {
   if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
     return 'Use letters, numbers, underscores, or hyphens.';
   }
-  if (props.projectFiles.some(({ path }) => pathWithinRegistry(path) === `${name}.json`)) {
+  const targetPath = renamingPath.value
+    ? `${renamingPath.value.slice(0, renamingPath.value.lastIndexOf('/') + 1)}${name}.json`
+    : null;
+  if (
+    props.projectFiles.some(({ path }) =>
+      targetPath ? path === targetPath : pathWithinRegistry(path) === `${name}.json`,
+    )
+  ) {
     return 'An entry with this name already exists.';
   }
   return '';
 });
 
 function openCreateDialog(duplicate = false): void {
+  renamingPath.value = null;
   duplicating.value = duplicate;
   entryName.value = duplicate
     ? `${
@@ -123,7 +145,9 @@ function submitCreate(): void {
   createSubmitted.value = true;
   createAttempted.value = true;
   fileSearch.value = '';
-  if (duplicating.value) {
+  if (renamingPath.value) {
+    emit('renameFile', renamingPath.value, entryName.value.trim());
+  } else if (duplicating.value) {
     emit('duplicateFile', entryName.value.trim());
   } else {
     emit('createFile', entryName.value.trim());
@@ -131,8 +155,8 @@ function submitCreate(): void {
 }
 
 watch(
-  () => props.editorLoading,
-  (loading) => {
+  () => [props.editorLoading, props.status, props.selectedPath] as const,
+  ([loading]) => {
     if (createSubmitted.value && !loading) {
       createSubmitted.value = false;
       if (!props.statusIsError) {
@@ -231,7 +255,11 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
 </script>
 
 <template>
-  <div class="file-modal">
+  <div
+    class="file-modal"
+    @pointerdown.capture="contextPath = ($event.target as Element).closest('.entry-context-menu') ? contextPath : null"
+    @keydown.esc="contextPath = null"
+  >
     <div class="peek-zone" aria-hidden="true" />
     <section class="project">
       <aside class="browser">
@@ -287,10 +315,16 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
             {{ fileSearch.trim() ? 'No matching files.' : 'No files in this registry.' }}
           </p>
           <ul v-else class="files">
-            <li v-for="file in filteredFiles" :key="file.path">
+            <li
+              v-for="file in filteredFiles"
+              :key="file.path"
+              @keydown.esc="contextPath = null"
+              @focusout="contextPath = null"
+            >
               <button
                 :class="{ active: file.path === selectedPath }"
                 :title="file.path"
+                @contextmenu.prevent.stop="contextPath = file.path"
                 @click="emit('openFile', file.path)"
               >
                 <span class="file-heading">
@@ -312,6 +346,17 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
                 </span>
                 <small>({{ pathWithinRegistry(file.path) }})</small>
               </button>
+              <div v-if="contextPath === file.path" class="entry-context-menu" role="menu" aria-label="Entry actions">
+                <button
+                  type="button"
+                  role="menuitem"
+                  :disabled="editorLoading || projectLoading"
+                  @pointerdown.prevent
+                  @click="openRenameDialog(file.path)"
+                >
+                  Rename
+                </button>
+              </div>
             </li>
           </ul>
         </div>
@@ -371,7 +416,7 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
             </nav>
             <div class="resource-actions" aria-label="Resource actions">
               <button
-                class="close"
+                class="close duplicate"
                 type="button"
                 :disabled="editorLoading || projectLoading"
                 title="Duplicate"
@@ -426,7 +471,9 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
         @cancel.prevent="closeCreateDialog"
       >
         <form @submit.prevent="submitCreate">
-          <h2 id="create-entry-title">{{ duplicating ? 'Duplicate entry' : 'New entry' }}</h2>
+          <h2 id="create-entry-title">
+            {{ renamingPath ? 'Rename entry' : duplicating ? 'Duplicate entry' : 'New entry' }}
+          </h2>
           <label class="bundle-picker">
             <span>Name</span>
             <input
@@ -445,7 +492,7 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
           <div class="confirmation-actions">
             <button class="close" type="button" @click="closeCreateDialog">Cancel</button>
             <button class="save" type="submit" :disabled="!!entryNameError || createSubmitted">
-              {{ createSubmitted ? 'Creating…' : 'Create' }}
+              {{ createSubmitted ? (renamingPath ? 'Renaming…' : 'Creating…') : renamingPath ? 'Rename' : 'Create' }}
             </button>
           </div>
         </form>
@@ -630,6 +677,21 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
   padding: 0;
   list-style: none;
 }
+.files li {
+  position: relative;
+}
+.entry-context-menu {
+  position: absolute;
+  z-index: 1;
+  right: 8px;
+  top: 100%;
+  width: 140px;
+  padding: 4px;
+  border: 1px solid #3f3f46;
+  border-radius: 6px;
+  background: #18181b;
+  box-shadow: 0 6px 24px #0008;
+}
 .files button {
   width: 100%;
   padding: 4px 7px;
@@ -711,6 +773,10 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
   display: flex;
   gap: 8px;
   padding: 5px 10px;
+}
+.duplicate {
+  display: grid;
+  place-items: center;
 }
 .tabs {
   display: flex;

@@ -111,8 +111,12 @@ export const createMockSeleneUiApi = (): SeleneUiApi => ({
       const response = await fetch(
         `/client/registries/${encodeURIComponent(registry.includes(':') ? registry : `selene:${registry}`)}`,
       );
-      if (response.status === 404) {return null;}
-      if (!response.ok) {throw new Error(`Registry lookup failed: ${response.status}`);}
+      if (response.status === 404) {
+        return null;
+      }
+      if (!response.ok) {
+        throw new Error(`Registry lookup failed: ${response.status}`);
+      }
       const snapshot = (await response.json()) as { entries: Record<string, Record<string, unknown>> };
       const options = Object.entries(snapshot.entries)
         .flatMap(([value, fields]) => {
@@ -232,6 +236,10 @@ export function editorHttpRequest(
       path = `/resources/files/${filePath()}`;
       method = 'PUT';
       break;
+    case 'rename-file':
+      path = `/resources/rename/${filePath()}`;
+      method = 'POST';
+      break;
     case 'create-file':
       path = `/resources/bundles/${segment('bundle')}/registries/${segment('registry')}/files`;
       method = 'POST';
@@ -264,7 +272,9 @@ export async function requestEditorOperation(
       String(payload.query ?? ''),
       payload.lookup === true,
     );
-    if (localResult !== null) {return localResult;}
+    if (localResult !== null) {
+      return localResult;
+    }
   }
   const request = editorHttpRequest(operation, payload);
   return selene.http.request(request.path, request.payload, request.method);
