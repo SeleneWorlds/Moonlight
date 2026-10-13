@@ -20,6 +20,7 @@ interface EditorGizmo {
   lookup?: boolean;
   color?: string;
   visual?: string;
+  range?: number;
 }
 
 interface ProjectFile {
@@ -310,6 +311,8 @@ const status = ref('Escape closes the file panel');
 const statusIsError = ref(false);
 const gizmos = ref<EditorGizmo[]>([]);
 const showGizmos = ref(true);
+const hoveredGizmoId = ref<string | null>(null);
+const focusedGizmoId = ref<string | null>(null);
 const cameraCoordinate = ref(selene.world.getCameraCoordinate());
 const hoveredCoordinate = ref<Coordinate | null>(null);
 const moveCameraLevel = (direction: number, event: MouseEvent) => {
@@ -353,6 +356,7 @@ async function enableGridForEmptyLayer(coordinate: Coordinate): Promise<void> {
 watch([enabled, showTileGrid], ([active, visible]) => {
   void selene.world.setTileGridVisible(active && visible);
 });
+const dragging = ref(false);
 const pickingDistance = ref<DistancePick | null>(null);
 const pickerActive = ref(false);
 const distanceCircle = computed(() => {
@@ -365,6 +369,24 @@ const distanceCircle = computed(() => {
     points: projectedCircle(pick.coordinate, pick.distance, selene.world.projectCoordinate),
     center: selene.world.projectCoordinate(pick.coordinate),
   };
+});
+const gizmoRangeCircle = computed(() => {
+  void projectionRevision.value;
+  if (!enabled.value || !showGizmos.value || pickerActive.value || pickingDistance.value || dragging.value) {
+    return null;
+  }
+  const gizmo = gizmos.value.find(({ id }) => id === (hoveredGizmoId.value ?? focusedGizmoId.value));
+  if (!gizmo || gizmo.range === undefined || gizmo.coordinate.z !== cameraCoordinate.value.z) {
+    return null;
+  }
+  return {
+    points: projectedCircle(gizmo.coordinate, gizmo.range, selene.world.projectCoordinate),
+    center: selene.world.projectCoordinate(gizmo.coordinate),
+  };
+});
+watch([enabled, showGizmos, pickerActive, pickingDistance, dragging, () => cameraCoordinate.value.z], () => {
+  hoveredGizmoId.value = null;
+  focusedGizmoId.value = null;
 });
 const isDirty = computed(() => selectedPath.value !== null && contents.value !== savedContents.value);
 const bundles = computed(() => [...bundleOptions.value].sort());
@@ -384,7 +406,6 @@ let pickingCoordinateField: string | null = null;
 let pickingRegistry: string | null = null;
 let pickerCameraZ: number | null = null;
 let suppressWorldPointer = false;
-const dragging = ref(false);
 let moved = false;
 let lastRequested: Coordinate | null = null;
 let dragClientX = 0;
@@ -799,6 +820,8 @@ function receiveGizmos(payload: ClientNetworkPayload): void {
         path: typeof gizmo.path === 'string' ? gizmo.path : undefined,
         color: typeof gizmo.color === 'string' ? gizmo.color : undefined,
         visual: typeof gizmo.visual === 'string' ? gizmo.visual : undefined,
+        range:
+          typeof gizmo.range === 'number' && Number.isFinite(gizmo.range) && gizmo.range >= 0 ? gizmo.range : undefined,
       });
     }
   }
@@ -864,6 +887,8 @@ onMounted(() => {
         requestGizmos();
       } else {
         gizmos.value = [];
+        hoveredGizmoId.value = null;
+        focusedGizmoId.value = null;
       }
       if (!enabled.value) {
         cameraRequests.cancel();
@@ -1065,6 +1090,8 @@ onMounted(() => {
     }),
     onEditorResponse('moonlight-editor:gizmos-start', () => {
       gizmos.value = [];
+      hoveredGizmoId.value = null;
+      focusedGizmoId.value = null;
     }),
     onEditorResponse('moonlight-editor:gizmos', receiveGizmos),
     onEditorResponse('moonlight-editor:gizmos-end', () => {
@@ -1296,10 +1323,17 @@ onBeforeUnmount(() => {
       v-for="gizmo in projectedGizmos"
       :key="gizmo.id"
       class="gizmo"
-      :class="{ interactive: (gizmo.path || gizmo.lookup) && !pickingDistance && !dragging }"
+      :class="{
+        interactive: (gizmo.path || gizmo.lookup) && !pickingDistance && !dragging,
+        'has-range': gizmo.range !== undefined && !pickingDistance && !dragging,
+      }"
       :style="{ left: `${gizmo.screen.x}px`, top: `${gizmo.screen.y}px`, '--gizmo-color': gizmo.color ?? '#f29d49' }"
       :title="gizmo.label"
-      :disabled="(!gizmo.path && !gizmo.lookup) || !!pickingDistance"
+      :disabled="(!gizmo.path && !gizmo.lookup && gizmo.range === undefined) || !!pickingDistance"
+      @pointerenter="hoveredGizmoId = gizmo.id"
+      @pointerleave="hoveredGizmoId = null"
+      @focus="focusedGizmoId = gizmo.id"
+      @blur="focusedGizmoId = null"
       @click.stop="clickGizmo(gizmo)"
     >
       <span class="gizmo-marker">
@@ -1308,6 +1342,10 @@ onBeforeUnmount(() => {
       <span class="gizmo-label">{{ gizmo.label }}</span>
     </button>
   </div>
+  <svg v-if="gizmoRangeCircle" class="distance-preview gizmo-range-preview" aria-hidden="true">
+    <polygon :points="gizmoRangeCircle.points" />
+    <circle :cx="gizmoRangeCircle.center.x" :cy="gizmoRangeCircle.center.y" r="4" />
+  </svg>
   <svg v-if="enabled && distanceCircle" class="distance-preview" aria-hidden="true">
     <polygon :points="distanceCircle.points" />
     <circle :cx="distanceCircle.center.x" :cy="distanceCircle.center.y" r="4" />
@@ -1534,6 +1572,9 @@ onBeforeUnmount(() => {
   height: 100%;
   pointer-events: none;
 }
+.gizmo-range-preview {
+  z-index: 699;
+}
 .distance-preview polygon {
   fill: #fb718530;
   stroke: #fb7185;
@@ -1615,6 +1656,9 @@ onBeforeUnmount(() => {
   font: inherit;
   white-space: nowrap;
   pointer-events: none;
+}
+.gizmo.has-range {
+  pointer-events: auto;
 }
 .gizmo.interactive {
   cursor: pointer;

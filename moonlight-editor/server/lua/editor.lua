@@ -249,6 +249,8 @@ Network.handlePayload("moonlight-editor:request-gizmos", function(player, payloa
                         path = type(gizmo.path) == "string" and gizmo.path or nil,
                         color = type(gizmo.color) == "string" and gizmo.color or nil,
                         visual = type(gizmo.visual) == "string" and gizmo.visual or nil,
+                        range = type(gizmo.range) == "number" and gizmo.range >= 0
+                            and gizmo.range < math.huge and gizmo.range or nil,
                     })
                 end
             end
