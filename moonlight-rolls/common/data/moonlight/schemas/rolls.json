@@ -53,8 +53,7 @@
                   "type": "string",
                   "weight": {
                     "type": "number",
-                    "min": 0,
-                    "optional": true
+                    "min": 0
                   },
                   "conditions": {
                     "type": "array",

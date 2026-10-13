@@ -84,7 +84,7 @@ function Rolls:schema()
         valueType = typedSchema(self._conditions, self._conditionSchemas, {}) }
     local entry = typedSchema(self._handlers, self._typeSchemas, {
         label = { type = "string", optional = true },
-        weight = { type = "number", min = 0, optional = true },
+        weight = { type = "number", min = 0 },
         conditions = copy(conditions)
     })
     return { type = "object", editor = "moonlight:rolls", properties = {
