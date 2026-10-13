@@ -297,7 +297,16 @@ function closeRegistry(name: string): void {
           >{{ fieldLabels?.[field.name] ?? label(field.name) }}</template
         >
         <small v-if="field.optional">optional</small>
-        <button v-if="!readonly && field.optional && field.name in parsed" type="button" @click="remove(field.name)">
+        <button
+          v-if="
+            !readonly &&
+            field.optional &&
+            !['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type) &&
+            field.name in parsed
+          "
+          type="button"
+          @click="remove(field.name)"
+        >
           Clear
         </button>
       </component>
