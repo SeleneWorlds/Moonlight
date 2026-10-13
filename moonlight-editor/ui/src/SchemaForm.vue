@@ -57,9 +57,12 @@ const fields = computed(() =>
         Number(['object', 'map', 'array', 'scripted_schema_lookup'].includes(b.type)),
     ),
 );
-const collectionFieldCount = computed(
-  () => fields.value.filter((field) => ['map', 'array'].includes(field.type)).length,
-);
+function isNestedSection(field: { type: string; editor?: string }): boolean {
+  return (
+    ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type) && field.editor !== 'moonlight:rolls'
+  );
+}
+const nestedSectionCount = computed(() => fields.value.filter(isNestedSection).length);
 const openRegistryField = ref<string | null>(null);
 const registryQueries = reactive<Record<string, string>>({});
 const knownRegistryOptions = reactive<Record<string, Record<string, RegistryOption>>>({});
@@ -267,7 +270,7 @@ function closeRegistry(name: string): void {
       "
       v-for="field in fields"
       :key="field.name"
-      :open="['map', 'array'].includes(field.type) && collectionFieldCount === 1 ? true : undefined"
+      :open="isNestedSection(field) && nestedSectionCount === 1 ? true : undefined"
       class="field"
       :class="{
         coordinate: ['coordinate', 'range', 'object', 'map', 'array', 'scripted_schema_lookup', 'any'].includes(
