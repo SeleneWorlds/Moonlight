@@ -25,10 +25,17 @@ new Function('require', 'module', 'exports', code)(
     if (id.endsWith('.vue'))
       return {
         inheritAttrs: false,
-        setup:
-          (_, { attrs, slots }) =>
-          () =>
-            h(id.includes('SelectInput') ? 'select' : 'button', attrs, slots.default?.()),
+        setup(_, { attrs, slots, expose }) {
+          if (id.includes('MoonlightSurface'))
+            expose({
+              element: {
+                offsetWidth: 210,
+                offsetHeight: 80,
+                getBoundingClientRect: () => ({ left: 40, top: 20, width: 420, height: 160 }),
+              },
+            });
+          return () => h(id.includes('SelectInput') ? 'select' : 'button', attrs, slots.default?.());
+        },
       };
     if (id === '@lucide/vue') return new Proxy({}, { get: () => ({ render: () => h('svg') }) });
     return require(id);
@@ -237,4 +244,29 @@ test('registry icons appear beside entries only in scenario mode', async () => {
   await nextTick();
   assert.equal(entryIcons().length, 0);
   view.app.unmount();
+});
+
+test('entry context menu follows the pointer with scaling and viewport clamping', async () => {
+  const previousWindow = globalThis.window;
+  globalThis.window = { innerWidth: 1000, innerHeight: 700 };
+  const view = mount();
+  try {
+    const entries = view.all().filter((node) => node.props?.onContextmenu);
+    const invoke = async (entry, clientX, clientY) => {
+      await entry.props.onContextmenu({ clientX, clientY, preventDefault() {}, stopPropagation() {} });
+      await nextTick();
+      return view.all().find((node) => node.props?.role === 'menu');
+    };
+    let menu = await invoke(entries[0], 240, 220);
+    assert.deepEqual(menu.props.style, { left: '100px', top: '100px' });
+    assert.match(menu.props.class, /ml-context/);
+    // Keep the popup in the editor window's stacking context, outside its scrolling sidebar.
+    assert.match(menu.parent.props.class, /ml-window/);
+    menu = await invoke(entries[1], 990, 690);
+    assert.deepEqual(menu.props.style, { left: '270px', top: '260px' });
+    assert.equal(view.control.contextPath, 'demo/server/data/demo/spawns/wolves.json');
+  } finally {
+    view.app.unmount();
+    globalThis.window = previousWindow;
+  }
 });

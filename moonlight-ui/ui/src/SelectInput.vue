@@ -13,6 +13,7 @@ const value = defineModel<string>({ required: true });
 const emit = defineEmits<{ change: [] }>();
 const id = useId();
 const root = ref<HTMLElement>();
+const input = ref<HTMLInputElement>();
 const popup = ref<HTMLElement>();
 const open = ref(false);
 const active = ref(-1);
@@ -95,6 +96,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', closeOutside));
   <div ref="root" class="select-input" @pointerdown.stop>
     <div
       class="trigger moonlight-input"
+      @click="input?.focus()"
       :class="{
         open,
         disabled: disabled || !options.length,
@@ -102,6 +104,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', closeOutside));
       }"
     >
       <input
+        ref="input"
         type="text"
         role="combobox"
         autocomplete="off"
@@ -134,7 +137,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', closeOutside));
         :class="{ active: active === index }"
         @pointerdown.prevent
         @pointermove="active = index"
-        @click="select(option)"
+        @click.prevent="select(option)"
       >
         <span>{{ optionLabel(option) }}</span>
         <Check v-if="value === option" :size="14" aria-hidden="true" />
@@ -182,6 +185,9 @@ onUnmounted(() => document.removeEventListener('pointerdown', closeOutside));
 }
 svg {
   flex-shrink: 0;
+}
+.trigger svg {
+  pointer-events: none;
 }
 .trigger:focus-within,
 .trigger.open {

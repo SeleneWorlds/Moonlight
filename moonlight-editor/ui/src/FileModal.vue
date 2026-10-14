@@ -2,7 +2,7 @@
 import MoonlightSwitch from 'moonlight-ui/MoonlightSwitch.vue';
 import MoonlightSurface from 'moonlight-ui/MoonlightSurface.vue';
 import MoonlightButton from 'moonlight-ui/MoonlightButton.vue';
-import { computed, onBeforeUnmount, ref, useId, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue';
 import { Copy, FilePlus, Pipette, X, ArrowLeftRight, Plus } from '@lucide/vue';
 import type { DistancePick, SchemaDefinition } from 'moonlight-ui/schema';
 import SchemaForm from 'moonlight-ui/SchemaForm.vue';
@@ -130,6 +130,25 @@ const createAttempted = ref(false);
 const duplicating = ref(false);
 const renamingPath = ref<string | null>(null);
 const contextPath = ref<string | null>(null);
+const contextMenuElement = ref<InstanceType<typeof MoonlightSurface> | null>(null);
+const contextPosition = ref({ x: 0, y: 0 });
+async function openEntryContextMenu(event: MouseEvent, path: string): Promise<void> {
+  contextPath.value = path;
+  contextPosition.value = { x: 0, y: 0 };
+  const position = contextPosition.value;
+  await nextTick();
+  const element = contextMenuElement.value?.element;
+  if (contextPosition.value !== position || contextPath.value !== path || !element) {
+    return;
+  }
+  // The bundle UI layer can translate and scale fixed elements.
+  const bounds = element.getBoundingClientRect();
+  const scaleX = bounds.width / element.offsetWidth;
+  const scaleY = bounds.height / element.offsetHeight;
+  const left = Math.max(0, Math.min(event.clientX, window.innerWidth - bounds.width));
+  const top = Math.max(0, Math.min(event.clientY, window.innerHeight - bounds.height));
+  contextPosition.value = { x: (left - bounds.left) / scaleX, y: (top - bounds.top) / scaleY };
+}
 
 const moveDialog = ref<HTMLDialogElement | null>(null);
 const movePath = ref<string | null>(null);
@@ -231,6 +250,7 @@ function submitCreate(): void {
   }
   createSubmitted.value = true;
   createAttempted.value = true;
+  contextPath.value = null;
   fileSearch.value = '';
   if (renamingPath.value) {
     emit('renameFile', renamingPath.value, entryName.value.trim());
@@ -333,6 +353,7 @@ const filteredFiles = computed(() => {
     .sort((a, b) => Number(changedPaths.has(b.path)) - Number(changedPaths.has(a.path)));
 });
 watch([selectedBundle, selectedRegistry, selectedScenario, () => props.scenarioMode], () => {
+  contextPath.value = null;
   fileSearch.value = '';
   closeCreateDialog();
   scenarioDialog.value?.close();
@@ -357,6 +378,39 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
   >
     <div class="peek-zone ml-peek" aria-hidden="true" />
     <MoonlightSurface as="section" variant="panel" class="project ml-window ml-split">
+      <MoonlightSurface
+        as="div"
+        variant="popup"
+        v-if="contextPath"
+        ref="contextMenuElement"
+        :style="{ left: `${contextPosition.x}px`, top: `${contextPosition.y}px` }"
+        @contextmenu.prevent
+        class="entry-context-menu moonlight-popup ml-context ml-column"
+        role="menu"
+        aria-label="Entry actions"
+      >
+        <MoonlightButton
+          class="moonlight-item"
+          variant="ghost"
+          type="button"
+          role="menuitem"
+          :disabled="editorLoading || projectLoading"
+          @pointerdown.prevent
+          @click="openRenameDialog(contextPath)"
+        >
+          Rename
+        </MoonlightButton>
+        <MoonlightButton
+          class="moonlight-item"
+          variant="ghost"
+          type="button"
+          role="menuitem"
+          :disabled="editorLoading || projectLoading || scenarioBusy"
+          @pointerdown.prevent
+          @click="openMoveDialog(contextPath)"
+          >Move to Scenario</MoonlightButton
+        >
+      </MoonlightSurface>
       <aside class="browser ml-sidebar">
         <div class="browser-content ml-grow ml-scroll ml-pad ml-stack ml-gap">
           <div class="bundle-picker moonlight-field">
@@ -490,7 +544,7 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
                 class="moonlight-item"
                 :aria-selected="file.path === selectedPath"
                 :title="file.path"
-                @contextmenu.prevent.stop="contextPath = file.path"
+                @contextmenu.prevent.stop="openEntryContextMenu($event, file.path)"
                 @click="emit('openFile', file.path)"
               >
                 <span class="file-heading ml-row ml-gap">
@@ -519,36 +573,6 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
                 </span>
                 <small class="ml-truncate">({{ pathWithinRegistry(file.path) }})</small>
               </MoonlightButton>
-              <MoonlightSurface
-                as="div"
-                variant="popup"
-                v-if="contextPath === file.path"
-                class="entry-context-menu moonlight-popup ml-flyout"
-                role="menu"
-                aria-label="Entry actions"
-              >
-                <MoonlightButton
-                  class="moonlight-item"
-                  variant="ghost"
-                  type="button"
-                  role="menuitem"
-                  :disabled="editorLoading || projectLoading"
-                  @pointerdown.prevent
-                  @click="openRenameDialog(file.path)"
-                >
-                  Rename
-                </MoonlightButton>
-                <MoonlightButton
-                  class="moonlight-item"
-                  variant="ghost"
-                  type="button"
-                  role="menuitem"
-                  :disabled="editorLoading || projectLoading || scenarioBusy"
-                  @pointerdown.prevent
-                  @click="openMoveDialog(file.path)"
-                  >Move to Scenario</MoonlightButton
-                >
-              </MoonlightSurface>
             </li>
           </ul>
         </div>
@@ -702,7 +726,7 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
         aria-labelledby="move-scenario-title"
         @cancel.prevent="!scenarioBusy && moveDialog?.close()"
       >
-        <form @submit.prevent="submitMove">
+        <form class="ml-stack ml-gap" @submit.prevent="submitMove">
           <h2 id="move-scenario-title">Move to Scenario</h2>
           <p class="moonlight-description">{{ movePath ? pathWithinRegistry(movePath) : '' }}</p>
           <label class="moonlight-field">
