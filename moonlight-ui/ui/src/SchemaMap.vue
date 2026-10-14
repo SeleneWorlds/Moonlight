@@ -68,7 +68,7 @@ function openRegistryEntry(key: string): void {
     });
   }
 }
-const primitiveValue = computed(() => {
+const tableValue = computed(() => {
   const definition = props.valueType;
   const type = typeof definition === 'string' ? definition : definition.type;
   if (type === 'enum' && typeof definition !== 'string') {
@@ -76,7 +76,7 @@ const primitiveValue = computed(() => {
       ({ value }) => value === null || ['string', 'number', 'boolean'].includes(typeof value),
     );
   }
-  return ['string', 'integer', 'number', 'boolean', 'enabled', 'distance', 'registry', 'script', 'Direction'].includes(
+  return ['string', 'integer', 'number', 'boolean', 'enabled', 'range', 'distance', 'registry', 'script', 'Direction'].includes(
     type,
   );
 });
@@ -213,7 +213,7 @@ function valueLabel(value: unknown): string {
 
 <template>
   <div class="map">
-    <table v-if="primitiveValue" class="entries" :class="{ 'registry-keys': keyRegistry }">
+    <table v-if="tableValue" class="entries" :class="{ 'registry-keys': keyRegistry }">
       <thead>
         <tr>
           <th v-if="keyRegistry" scope="col" class="entry-preview">
@@ -357,7 +357,7 @@ function valueLabel(value: unknown): string {
       <SchemaForm
         :key="addOnSelection ? draftFormKey : contents"
         :keep-selection-open-on-shift="addOnSelection"
-        :hide-field-labels="primitiveValue"
+        :hide-field-labels="tableValue"
         :schema="{ key: availableKeyType }"
         :contents="draft"
         :registry-options="availableKeyRegistryOptions"
