@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import MoonlightButton from './MoonlightButton.vue';
+import MoonlightSwitch from './MoonlightSwitch.vue';
 import { computed, reactive, ref, watch } from 'vue';
 import { ExternalLink, Eye, Locate, Radius } from '@lucide/vue';
 import { resolveSchemaField, type DistancePick, type SchemaDefinition } from './schema';
@@ -305,9 +306,10 @@ function closeRegistry(name: string): void {
     >
       <component
         v-if="
-          !hideFieldLabels ||
-          field.optional ||
-          ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type)
+          !['boolean', 'enabled'].includes(field.type) &&
+          (!hideFieldLabels ||
+            field.optional ||
+            ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type))
         "
         :is="
           ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type) &&
@@ -487,15 +489,16 @@ function closeRegistry(name: string): void {
         :required="!field.optional"
         @select="update(field.name, $event)"
       />
-      <input
-        :readonly="readonly"
-        v-else-if="field.type === 'boolean' || field.type === 'enabled'"
-        :checked="parsed[field.name] === true"
-        class="checkbox moonlight-checkbox"
-        type="checkbox"
-        :disabled="readonly"
-        @change="update(field.name, ($event.target as HTMLInputElement).checked)"
-      />
+      <div v-else-if="field.type === 'boolean' || field.type === 'enabled'" class="ml-row">
+        <MoonlightSwitch
+          :checked="parsed[field.name] === true"
+          :aria-label="fieldLabels?.[field.name] ?? label(field.name)"
+          :disabled="readonly"
+          @click="update(field.name, parsed[field.name] !== true)"
+        >
+          <span v-if="!hideFieldLabels">{{ fieldLabels?.[field.name] ?? label(field.name) }}</span>
+        </MoonlightSwitch>
+      </div>
       <RegistryFieldReferenceInput
         v-else-if="field.type === 'registry_field_reference'"
         :registry="referenceRegistry(field.reference)"
@@ -703,11 +706,6 @@ select {
   padding: 8px 12px;
 }
 
-.checkbox {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--moonlight-accent, #fb7185);
-}
 .coordinate-input,
 .range-input {
   display: grid;

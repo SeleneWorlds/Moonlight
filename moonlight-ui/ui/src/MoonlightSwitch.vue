@@ -9,6 +9,8 @@ defineProps<{ checked: boolean; disabled?: boolean }>();
 </template>
 <style scoped>
 .moonlight-switch {
+  justify-content: flex-start;
+  text-align: left;
   gap: 8px;
   padding: 2px;
   border: 0;

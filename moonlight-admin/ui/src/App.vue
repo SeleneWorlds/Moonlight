@@ -762,7 +762,7 @@ onBeforeUnmount(() => {
                     parameter.type === 'message',
                 }"
               >
-                <span class="field-heading ml-row ml-between">
+                <span v-if="parameter.type !== 'boolean'" class="field-heading ml-row ml-between">
                   <span>
                     {{ parameter.label }}
                     <small v-if="!parameter.required" class="optional-label ml-subtle">(optional)</small>
@@ -794,12 +794,16 @@ onBeforeUnmount(() => {
                   type="text"
                   :required="parameter.required"
                 />
-                <input
+                <MoonlightSwitch
                   v-else-if="parameter.type === 'boolean'"
-                  v-model="values[action.id]![parameter.name] as boolean"
-                  class="checkbox moonlight-checkbox"
-                  type="checkbox"
-                />
+                  :checked="values[action.id]![parameter.name] === true"
+                  :aria-label="parameter.label"
+                  @click="values[action.id]![parameter.name] = values[action.id]![parameter.name] !== true"
+                >
+                  <span>
+                    {{ parameter.label }}
+                  </span>
+                </MoonlightSwitch>
                 <div v-else-if="parameter.type === 'enum'" class="select ml-relative">
                   <MoonlightButton
                     class="enum-trigger moonlight-item ml-between"
