@@ -90,3 +90,35 @@ Run tests from the Selene repository root:
 ```sh
 lua bundles/moonlight/moonlight-rolls/tests/rolls_test.lua
 ```
+
+For registry fields without a Lua schema provider, define payload types statically:
+
+```json
+{
+  "type": "moonlight:rolls",
+  "optional": true,
+  "parameters": {
+    "entryTypes": {
+      "item": { "type": "object", "properties": { "item": "string" } },
+      "nothing": "any"
+    },
+    "conditionTypes": {
+      "level": { "type": "object", "properties": { "min": "integer" } }
+    }
+  }
+}
+```
+
+Each map key becomes a type dropdown option and its value defines that type's
+`data` controls. Values may also reference named schemas. Omit either map to
+keep free-form types and JSON payloads; an empty map offers no registered types.
+Condition schemas apply at definition, pool, and entry level. These options are
+resolved by both registry and script schema providers and do not register runtime
+handlers or validate runtime payloads.
+
+Named schemas support generic template parameters. A node such as
+`{ "$parameter": "payload", "default": "any" }` is replaced by the caller's
+`parameters.payload` before resolving nested types. The optional `"transform":
+"enum"` converts an object parameter's keys into sorted enum options. Defaults
+apply when a parameter is omitted. Bindings are scoped to each named schema;
+these template features do not depend on rolls or any other bundle editor.
