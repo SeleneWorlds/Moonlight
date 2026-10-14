@@ -383,6 +383,30 @@ end)
 
 -- Named types are bundle-provided definitions in the selene:schemas registry.
 -- Resolve recursively before sending them to the form's built-in field editors.
+local function bindSchemaParameters(template, parameters)
+    if type(template) ~= "table" then return template end
+    local parameter = template["$parameter"]
+    if parameter then
+        local value = parameters[parameter]
+        if value == nil then
+            return assert(template.default, "Missing schema parameter: " .. parameter)
+        end
+        if template.transform == "enum" then
+            assert(type(value) == "table", "Enum schema parameter must be an object: " .. parameter)
+            local names, values = {}, {}
+            for name in pairs(value) do names[#names + 1] = name end
+            table.sort(names)
+            for _, name in ipairs(names) do values[#values + 1] = { value = name, label = name } end
+            return { type = "enum", values = values }
+        end
+        assert(template.transform == nil, "Unknown schema parameter transform")
+        return value
+    end
+    local result = {}
+    for key, value in pairs(template) do result[key] = bindSchemaParameters(value, parameters) end
+    return result
+end
+
 local function resolveSchema(definition, resolving)
     local kind = type(definition) == "string" and definition or definition.type
     local resolved = {}
@@ -390,15 +414,16 @@ local function resolveSchema(definition, resolving)
         assert(not resolving[kind], "Cyclic schema reference: " .. kind)
         local entry = assert(Registries.findByName("selene:schemas", kind), "Unknown schema: " .. kind)
         resolving[kind] = true
-        resolved = resolveSchema(assert(entry:getField("definition"), "Missing schema definition: " .. kind), resolving)
+        resolved = resolveSchema(bindSchemaParameters(
+            assert(entry:getField("definition"), "Missing schema definition: " .. kind),
+            type(definition) == "table" and definition.parameters or {}), resolving)
         resolving[kind] = nil
-        if kind == "moonlight:rolls" then resolved.editor = "moonlight:rolls" end
     elseif type(definition) == "string" then
         return definition
     end
     if type(definition) == "table" then
         for key, value in pairs(definition) do
-            if key ~= "type" or not kind:find(":", 1, true) then resolved[key] = value end
+            if key ~= "parameters" and (key ~= "type" or not kind:find(":", 1, true)) then resolved[key] = value end
         end
     end
     if resolved.properties then
