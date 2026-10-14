@@ -6,6 +6,7 @@ import { Focus, Database, ArrowDown, ArrowUp, Grid2X2, Eye, Lightbulb, X } from 
 import type { DistancePick, SchemaDefinition } from 'moonlight-ui/schema';
 import { latestRequest } from 'moonlight-ui/LatestRequest';
 import { parseRegistryOptions } from 'moonlight-ui/registryOptions';
+import { scenarioFromContents, withScenario, withEnabled, mapResources } from './scenarios';
 import { pickedDistance, projectedCircle } from './distance';
 import { useSelene, requestEditorOperation, type ClientNetworkPayload, type Coordinate } from './selene';
 import FileModal from './FileModal.vue';
@@ -29,6 +30,9 @@ interface EditorGizmo {
 interface ProjectFile {
   path: string;
   name?: string;
+  registry?: string;
+  scenario?: string;
+  enabled?: boolean;
 }
 
 const selene = useSelene();
@@ -222,21 +226,301 @@ watch([selectedBundle, selectedRegistry], ([bundle, registry]) => {
     // Selection still works when browser storage is unavailable.
   }
 });
+const scenarioMode = ref(false);
+const selectedScenario = ref('');
+const SCENARIO_REGISTRY = 'moonlight:scenarios';
+interface ScenarioDefinition {
+  path: string;
+  identifier: string;
+  name: string;
+  enabled: boolean;
+}
+const scenarioDefinitions = ref<ScenarioDefinition[]>([]);
+const scenarioLabels = computed(() =>
+  Object.fromEntries(scenarioDefinitions.value.map((scenario) => [scenario.identifier, scenario.name])),
+);
+const scenarioProjects = ref<ProjectFile[]>([]);
+const scenarioRegistrySchema = ref<Record<string, SchemaDefinition> | null>(null);
+const scenarioSchemas = ref<Record<string, Record<string, SchemaDefinition> | null>>({});
+const scenarioBusy = ref(false);
+let scenarioRevision = 0;
+const scenarios = computed(() => scenarioDefinitions.value.map((scenario) => scenario.identifier).sort());
+function scenarioIdentifier(path: string): string {
+  const match = path.match(/\/(?:common|server)\/data\/([^/]+)\/scenarios\/(.+)\.json$/);
+  if (!match) {
+    throw new Error('Invalid scenario resource path.');
+  }
+  return `${match[1]}:${match[2]}`;
+}
+const scenarioCatalogLoading = ref(false);
+let scenarioCatalogRevision = 0;
+async function readScenarioDefinitions(bundle: string): Promise<ScenarioDefinition[]> {
+  const project = (await requestEditorOperation(selene, 'request-project', {
+    bundle,
+    registry: SCENARIO_REGISTRY,
+  })) as { files: ProjectFile[]; schema: Record<string, SchemaDefinition> | null };
+  if (bundle === selectedBundle.value) {
+    scenarioRegistrySchema.value = project.schema;
+  }
+  return await mapResources(project.files, async (file) => {
+    const resource = (await requestEditorOperation(selene, 'open-file', { path: file.path })) as { contents: string };
+    const data = JSON.parse(resource.contents);
+    const identifier = scenarioIdentifier(file.path);
+    return {
+      path: file.path,
+      identifier,
+      name: typeof data.name === 'string' ? data.name : identifier,
+      enabled: data.enabled === true,
+    };
+  });
+}
+async function loadScenarios(): Promise<void> {
+  const revision = ++scenarioCatalogRevision;
+  const bundle = selectedBundle.value;
+  scenarioCatalogLoading.value = true;
+  scenarioDefinitions.value = [];
+  setStatus('Loading scenarios…');
+  try {
+    const definitions = await readScenarioDefinitions(bundle);
+    if (revision === scenarioCatalogRevision && bundle === selectedBundle.value) {
+      scenarioDefinitions.value = definitions;
+      setStatus('Choose a scenario.');
+    }
+  } catch (error) {
+    if (revision === scenarioCatalogRevision && bundle === selectedBundle.value) {
+      setStatus(String(error), true);
+    }
+  } finally {
+    if (revision === scenarioCatalogRevision) {
+      scenarioCatalogLoading.value = false;
+    }
+  }
+}
+async function loadScenarioProjects(): Promise<void> {
+  const revision = ++scenarioRevision;
+  const bundle = selectedBundle.value;
+  projectLoading.value = true;
+  scenarioProjects.value = [];
+  scenarioSchemas.value = {};
+  registrySchema.value = null;
+  try {
+    const definitions = await readScenarioDefinitions(bundle);
+    const results = await mapResources(
+      registries.value.filter((registry) => registry !== SCENARIO_REGISTRY),
+      async (registry) => {
+        const result = (await requestEditorOperation(selene, 'search-resource-metadata', {
+          bundle,
+          registry,
+          key: 'scenario',
+          fieldType: 'enabled',
+        })) as {
+          files: Array<ProjectFile & { metadata: Record<string, unknown>; fields: Record<string, unknown> }>;
+          schema: Record<string, SchemaDefinition> | null;
+        };
+        return { ...result, registry };
+      },
+    );
+    const files = results.flatMap((result) =>
+      result.files.map((file) => ({
+        path: file.path,
+        name: file.name,
+        registry: result.registry,
+        enabled: Object.entries(result.schema ?? {}).some(
+          ([field, definition]) =>
+            (typeof definition === 'string' ? definition : definition.type) === 'enabled' &&
+            file.fields?.[field] === true,
+        ),
+        scenario: typeof file.metadata.scenario === 'string' ? file.metadata.scenario : undefined,
+      })),
+    );
+    if (revision !== scenarioRevision || bundle !== selectedBundle.value || !scenarioMode.value) {
+      return;
+    }
+    scenarioDefinitions.value = definitions;
+    scenarioProjects.value = files;
+    scenarioSchemas.value = {
+      ...Object.fromEntries(results.map((result) => [result.registry, result.schema])),
+      [SCENARIO_REGISTRY]: scenarioRegistrySchema.value,
+    };
+    if (selectedPath.value) {
+      registrySchema.value = scenarioSchemas.value[selectedRegistry.value] ?? null;
+    }
+    if (!scenarios.value.includes(selectedScenario.value)) {
+      selectedScenario.value = scenarios.value[0] ?? '';
+    }
+    setStatus(`${scenarioProjects.value.length} data files`);
+  } catch (error) {
+    if (revision === scenarioRevision) {
+      setStatus(String(error), true);
+    }
+  } finally {
+    if (revision === scenarioRevision) {
+      projectLoading.value = false;
+      schemaLoading.value = false;
+    }
+  }
+}
+function selectScenario(): void {
+  selectedPath.value = null;
+}
+function toggleScenarioMode(): void {
+  scenarioRevision += 1;
+  scenarioMode.value = !scenarioMode.value;
+  selectedPath.value = null;
+  requestProject();
+}
+async function createScenario(name: string): Promise<void> {
+  name = name.trim();
+  if (!name || scenarioBusy.value || scenarioDefinitions.value.some((scenario) => scenario.name === name)) {
+    return;
+  }
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  if (!slug) {
+    setStatus('Use letters or numbers in the scenario name.', true);
+    return;
+  }
+  scenarioBusy.value = true;
+  try {
+    const created = (await requestEditorOperation(selene, 'create-file', {
+      bundle: selectedBundle.value,
+      registry: SCENARIO_REGISTRY,
+      namespace: 'moonlight',
+      name: slug,
+      contents: JSON.stringify({ name, enabled: false }),
+    })) as { path: string; contents: string };
+    await requestEditorOperation(selene, 'save-file', { path: created.path, contents: created.contents });
+    selectedPath.value = null;
+    selectedScenario.value = scenarioIdentifier(created.path);
+    await loadScenarioProjects();
+    setStatus('Scenario created. Persist changes to save it to the bundle.');
+  } catch (error) {
+    setStatus(String(error), true);
+  } finally {
+    scenarioBusy.value = false;
+    requestEditor('pending-changes');
+  }
+}
+async function manageScenario(): Promise<void> {
+  const definition = scenarioDefinitions.value.find((scenario) => scenario.identifier === selectedScenario.value);
+  if (!definition || scenarioBusy.value || projectLoading.value || fileLoading.value) {
+    return;
+  }
+  fileLoading.value = true;
+  try {
+    const resource = (await requestEditorOperation(selene, 'open-file', { path: definition.path })) as {
+      path: string;
+      contents: string;
+    };
+    receiveFile({ ...resource, path: definition.path, registry: SCENARIO_REGISTRY });
+  } catch (error) {
+    fileLoading.value = false;
+    setStatus(String(error), true);
+  }
+}
+async function setScenarioEnabled(enabled: boolean, scenarioContents?: string): Promise<void> {
+  if (scenarioBusy.value || projectLoading.value || !selectedScenario.value) {
+    return;
+  }
+  scenarioBusy.value = true;
+  try {
+    const updates = await mapResources(listedFiles.value, async (file) => {
+      const schema = scenarioSchemas.value[file.registry ?? ''];
+      const local = entries.value[file.path];
+      const resource =
+        (local && (local.draft || local.contents !== local.appliedContents) ? local : undefined) ??
+        ((await requestEditorOperation(selene, 'open-file', { path: file.path })) as { contents: string });
+      let updated: string;
+      try {
+        updated = withEnabled(resource.contents, schema, enabled);
+      } catch (error) {
+        throw new Error(`${file.path}: ${String(error)}`);
+      }
+      return { path: file.path, contents: updated };
+    });
+    const definition = scenarioDefinitions.value.find((scenario) => scenario.identifier === selectedScenario.value);
+    if (!definition) {
+      throw new Error('Scenario no longer exists.');
+    }
+    const resource = (await requestEditorOperation(selene, 'open-file', { path: definition.path })) as {
+      contents: string;
+    };
+    updates.push({
+      path: definition.path,
+      contents: withEnabled(scenarioContents ?? resource.contents, { enabled: 'enabled' }, enabled),
+    });
+    for (let offset = 0; offset < updates.length; offset += 32) {
+      const batch = updates.slice(offset, offset + 32);
+      const permissions = await selene.http.request(
+        '/resources/permissions',
+        {
+          checks: batch.map((request) => ({ operation: 'save-file', request })),
+        },
+        'POST',
+      );
+      if (
+        !Array.isArray(permissions) ||
+        permissions.length !== batch.length ||
+        permissions.some((value) => value !== true)
+      ) {
+        throw new Error('You cannot edit every entry in this scenario.');
+      }
+    }
+    for (const update of updates) {
+      await requestEditorOperation(selene, 'save-file', update);
+      const local = entries.value[update.path];
+      if (local) {
+        local.contents = update.contents;
+        local.appliedContents = update.contents;
+        local.draft = false;
+      }
+    }
+    requestEditor('pending-changes');
+    requestGizmos();
+    await loadScenarioProjects();
+    setStatus(`Scenario ${enabled ? 'enabled' : 'disabled'} (${updates.length} entries).`);
+  } catch (error) {
+    setStatus(String(error), true);
+  } finally {
+    scenarioBusy.value = false;
+    requestEditor('pending-changes');
+  }
+}
 const selectedPath = ref<string | null>(null);
 const entries = ref<Record<string, { contents: string; appliedContents: string; draft?: boolean; registry?: string }>>(
   {},
 );
-const listedFiles = computed(() => {
+function scenarioMatches(value: string | undefined): boolean {
+  return (
+    !!value &&
+    !!selectedScenario.value &&
+    (value === selectedScenario.value || value === scenarioLabels.value[selectedScenario.value])
+  );
+}
+const listedFiles = computed<ProjectFile[]>(() => {
+  const files = scenarioMode.value ? scenarioProjects.value : projectFiles.value;
   const drafts = Object.entries(entries.value)
     .filter(
       ([path, entry]) =>
-        entry.draft && bundleFromPath(path) === selectedBundle.value && entry.registry === selectedRegistry.value,
+        (entry.draft || (scenarioMode.value && entry.contents !== entry.appliedContents)) &&
+        bundleFromPath(path) === selectedBundle.value,
     )
-    .map(([path]) => ({ path }));
-  return [
-    ...projectFiles.value,
-    ...drafts.filter(({ path }) => !projectFiles.value.some((file) => file.path === path)),
-  ].sort((left, right) => left.path.localeCompare(right.path));
+    .map(([path, entry]) => ({ path, registry: entry.registry, scenario: scenarioFromContents(entry.contents) }));
+  return [...files, ...drafts.filter(({ path }) => !files.some((file) => file.path === path))]
+    .filter((file) =>
+      scenarioMode.value
+        ? scenarioMatches(
+            entries.value[file.path] &&
+              (entries.value[file.path]!.draft ||
+                entries.value[file.path]!.contents !== entries.value[file.path]!.appliedContents)
+              ? scenarioFromContents(entries.value[file.path]!.contents)
+              : file.scenario,
+          )
+        : !file.registry || file.registry === selectedRegistry.value,
+    )
+    .sort((left, right) => left.path.localeCompare(right.path));
 });
 const applying = new Map<string, string>();
 const contents = computed({
@@ -447,6 +731,10 @@ function setStatus(message: string, error = false): void {
 }
 
 function requestProject(): void {
+  if (scenarioMode.value) {
+    void loadScenarioProjects();
+    return;
+  }
   if (!selectedBundle.value || !selectedRegistry.value) {
     projectLoading.value = false;
     schemaLoading.value = false;
@@ -494,6 +782,11 @@ function requestBundleRegistries(): void {
 }
 
 function selectBundle(): void {
+  scenarioRevision += 1;
+  selectedScenario.value = '';
+  scenarioDefinitions.value = [];
+  scenarioProjects.value = [];
+  scenarioSchemas.value = {};
   selectedPath.value = null;
   selectedRegistry.value = '';
   projectFiles.value = [];
@@ -543,8 +836,30 @@ function openFile(path: string): void {
   requestEditor('open-file', { path });
 }
 
-function createFile(name: string, duplicate = false): void {
-  if (!selectedBundle.value || !selectedRegistry.value || fileLoading.value || projectLoading.value) {
+function newScenarioEntryContents(registry: string): string {
+  const value = withScenario('{}', selectedScenario.value);
+  const schema = scenarioSchemas.value[registry];
+  if (
+    !Object.values(schema ?? {}).some(
+      (definition) => (typeof definition === 'string' ? definition : definition.type) === 'enabled',
+    )
+  ) {
+    return value;
+  }
+  return withEnabled(
+    value,
+    schema,
+    scenarioDefinitions.value.find((scenario) => scenario.identifier === selectedScenario.value)?.enabled ?? false,
+  );
+}
+function createFile(name: string, duplicate = false, registry = selectedRegistry.value): void {
+  if (
+    !selectedBundle.value ||
+    !registry ||
+    (scenarioMode.value && !selectedScenario.value) ||
+    fileLoading.value ||
+    projectLoading.value
+  ) {
     return;
   }
   fileLoading.value = true;
@@ -552,14 +867,73 @@ function createFile(name: string, duplicate = false): void {
   requestEditor('create-file', {
     name,
     bundle: duplicate && selectedPath.value ? bundleFromPath(selectedPath.value) : selectedBundle.value,
-    registry: selectedRegistry.value,
-    namespace: (duplicate && selectedPath.value ? selectedPath.value : projectFiles.value[0]?.path)?.match(
-      /\/(?:common|server)\/data\/([^/]+)\//,
-    )?.[1],
-    ...(duplicate ? { sourcePath: selectedPath.value, contents: contents.value } : {}),
+    registry,
+    namespace: (duplicate && selectedPath.value
+      ? selectedPath.value
+      : scenarioMode.value
+        ? scenarioProjects.value.find((file) => file.registry === registry)?.path
+        : projectFiles.value[0]?.path
+    )?.match(/\/(?:common|server)\/data\/([^/]+)\//)?.[1],
+    ...(duplicate
+      ? { sourcePath: selectedPath.value, contents: contents.value }
+      : scenarioMode.value
+        ? { contents: newScenarioEntryContents(registry) }
+        : {}),
   });
 }
 
+async function moveToScenario(path: string, scenario: string): Promise<void> {
+  if (scenarioBusy.value || fileLoading.value || projectLoading.value) {
+    return;
+  }
+  if (!scenarioDefinitions.value.some((definition) => definition.identifier === scenario)) {
+    setStatus('Choose an existing scenario.', true);
+    return;
+  }
+  const bundle = selectedBundle.value;
+  scenarioBusy.value = true;
+  try {
+    const local = entries.value[path];
+    const resource = local?.draft
+      ? local
+      : ((await requestEditorOperation(selene, 'open-file', { path })) as { contents: string });
+    const updated = withScenario(resource.contents, scenario);
+    const localUpdated =
+      local && local.contents !== local.appliedContents ? withScenario(local.contents, scenario) : updated;
+    const permissions = await selene.http.request(
+      '/resources/permissions',
+      {
+        checks: [{ operation: 'save-file', request: { path, contents: updated } }],
+      },
+      'POST',
+    );
+    if (!Array.isArray(permissions) || permissions[0] !== true) {
+      throw new Error('You cannot edit this entry.');
+    }
+    if (local?.draft) {
+      local.contents = updated;
+    } else {
+      await requestEditorOperation(selene, 'save-file', { path, contents: updated });
+      if (local) {
+        local.contents = localUpdated!;
+        local.appliedContents = updated;
+      }
+    }
+    if (bundle === selectedBundle.value && scenarioMode.value) {
+      await loadScenarioProjects();
+    }
+    setStatus(
+      local?.draft
+        ? 'Draft moved to scenario. Apply and persist to save it.'
+        : 'Entry moved to scenario. Persist changes to save it.',
+    );
+  } catch (error) {
+    setStatus(String(error), true);
+  } finally {
+    scenarioBusy.value = false;
+    requestEditor('pending-changes');
+  }
+}
 function renameFile(path: string, name: string): void {
   if (fileLoading.value || projectLoading.value) {
     return;
@@ -572,7 +946,12 @@ function renameFile(path: string, name: string): void {
   if (entries.value[path]?.draft) {
     entries.value[newPath] = entries.value[path]!;
     delete entries.value[path];
-    receiveFile({ path: newPath, contents: entries.value[newPath]!.contents, draft: true });
+    receiveFile({
+      path: newPath,
+      contents: entries.value[newPath]!.contents,
+      draft: true,
+      registry: entries.value[newPath]!.registry,
+    });
     return;
   }
   fileLoading.value = true;
@@ -583,6 +962,18 @@ function renameFile(path: string, name: string): void {
 function save(): void {
   if (!selectedPath.value || !isDirty.value || !resourcePermissions.value.apply) {
     return;
+  }
+  if (scenarioMode.value && selectedRegistry.value === SCENARIO_REGISTRY) {
+    try {
+      const enabled = JSON.parse(contents.value).enabled === true;
+      if (enabled !== (JSON.parse(savedContents.value).enabled === true)) {
+        void setScenarioEnabled(enabled, contents.value);
+        return;
+      }
+    } catch {
+      setStatus('Fix the JSON before applying the scenario.', true);
+      return;
+    }
   }
   if (applying.has(selectedPath.value)) {
     return;
@@ -752,7 +1143,7 @@ function handleKeyDown(event: KeyboardEvent): void {
 }
 
 function receiveProjectFiles(payload: ClientNetworkPayload): void {
-  if (isCurrentSelection(payload) && Array.isArray(payload.files)) {
+  if (!scenarioMode.value && isCurrentSelection(payload) && Array.isArray(payload.files)) {
     projectFiles.value.push(
       ...payload.files.filter(
         (file): file is ProjectFile =>
@@ -850,11 +1241,14 @@ function receiveFile(payload: ClientNetworkPayload): void {
     draft: payload.draft === true,
     registry: selectedRegistry.value,
   };
+  if (scenarioMode.value) {
+    registrySchema.value = scenarioSchemas.value[selectedRegistry.value] ?? null;
+  }
   if (!wasVisible) {
     setProjectVisible(true);
   } else if (selectedBundle.value !== previousBundle) {
     requestBundleRegistries();
-  } else if (selectedRegistry.value !== previousRegistry) {
+  } else if (!scenarioMode.value && selectedRegistry.value !== previousRegistry) {
     requestProject();
   }
   setStatus('File loaded');
@@ -915,7 +1309,7 @@ onMounted(() => {
       }
     }),
     onEditorResponse('moonlight-editor:project-start', (payload) => {
-      if (isCurrentSelection(payload)) {
+      if (!scenarioMode.value && isCurrentSelection(payload)) {
         projectFiles.value = [];
         registrySchema.value =
           typeof payload.schema === 'object' && payload.schema !== null && !Array.isArray(payload.schema)
@@ -928,7 +1322,7 @@ onMounted(() => {
     onEditorResponse('moonlight-editor:bundle-registry-options', receiveBundleRegistries),
     onEditorResponse('moonlight-editor:project-files', receiveProjectFiles),
     onEditorResponse('moonlight-editor:project-end', (payload) => {
-      if (isCurrentSelection(payload)) {
+      if (!scenarioMode.value && isCurrentSelection(payload)) {
         projectLoading.value = false;
         setStatus(`${projectFiles.value.length} data files`);
       }
@@ -978,7 +1372,7 @@ onMounted(() => {
     }),
     onEditorResponse('moonlight-editor:file', receiveFile),
     onEditorResponse('moonlight-editor:file-created', (payload) => {
-      if (isCurrentSelection(payload)) {
+      if (!scenarioMode.value && isCurrentSelection(payload)) {
         requestProject();
       }
     }),
@@ -1024,8 +1418,14 @@ onMounted(() => {
         const wasDraft = entry.draft;
         entry.appliedContents = appliedContents;
         entry.draft = false;
-        if (wasDraft) {
+        if (wasDraft || scenarioMode.value) {
           requestProject();
+        }
+      }
+      if (scenarioMode.value && entry && appliedContents !== undefined) {
+        const file = scenarioProjects.value.find((file) => file.path === payload.path);
+        if (file) {
+          file.scenario = scenarioFromContents(appliedContents);
         }
       }
       if (payload.path === selectedPath.value) {
@@ -1054,7 +1454,7 @@ onMounted(() => {
       if (selectedPath.value && removedPaths.includes(selectedPath.value)) {
         selectedPath.value = null;
       }
-      if (removedPaths.length > 0) {
+      if (removedPaths.length > 0 || scenarioMode.value) {
         requestProject();
       }
       setStatus('Changes persisted');
@@ -1071,7 +1471,7 @@ onMounted(() => {
       if (selectedPath.value && removedPaths.includes(selectedPath.value)) {
         selectedPath.value = null;
       }
-      if (removedPaths.length > 0) {
+      if (removedPaths.length > 0 || scenarioMode.value) {
         requestProject();
       }
       if (selectedPath.value && (payload.path === undefined || payload.path === selectedPath.value)) {
@@ -1341,7 +1741,9 @@ onBeforeUnmount(() => {
       v-for="gizmo in projectedGizmos"
       :key="gizmo.id"
       class="gizmo"
-      :interactive="!!(gizmo.label || gizmo.path || gizmo.lookup || gizmo.range !== undefined) && !pickingDistance && !dragging"
+      :interactive="
+        !!(gizmo.label || gizmo.path || gizmo.lookup || gizmo.range !== undefined) && !pickingDistance && !dragging
+      "
       :style="{ left: `${gizmo.screen.x}px`, top: `${gizmo.screen.y}px`, '--gizmo-color': gizmo.color ?? '#f29d49' }"
       :label="gizmo.label"
       :visual="gizmo.visual"
@@ -1418,12 +1820,25 @@ onBeforeUnmount(() => {
     v-model:selected-bundle="selectedBundle"
     v-model:selected-registry="selectedRegistry"
     v-model:contents="contents"
+    :scenario-mode="scenarioMode"
+    v-model:selected-scenario="selectedScenario"
+    :scenarios="scenarios"
+    :scenario-labels="scenarioLabels"
+    :scenario-busy="scenarioBusy"
+    :scenario-catalog-loading="scenarioCatalogLoading"
+    @load-scenarios="loadScenarios"
+    @move-to-scenario="moveToScenario"
+    @toggle-scenario-mode="toggleScenarioMode"
+    @select-scenario="selectScenario"
+    @create-scenario="createScenario"
+    @manage-scenario="manageScenario"
     :bundles="bundles"
-    :registries="registries"
+    :registries="scenarioMode ? registries.filter((registry) => registry !== SCENARIO_REGISTRY) : registries"
     :project-files="listedFiles"
     :project-loading="projectLoading"
-    :editor-loading="fileLoading || schemaLoading"
+    :editor-loading="fileLoading || schemaLoading || scenarioBusy"
     :selected-path="selectedPath"
+    :selected-file-name="scenarioDefinitions.find((scenario) => scenario.path === selectedPath)?.name"
     :is-dirty="isDirty"
     :permissions="resourcePermissions"
     :pending-changes="pendingChanges"
@@ -1441,7 +1856,7 @@ onBeforeUnmount(() => {
     @pick-coordinate="startCoordinatePicker"
     @pick-distance="startDistancePicker"
     @pick-resource="startRegistryPicker"
-    @create-file="createFile"
+    @create-file="(name, registry) => createFile(name, false, registry)"
     @duplicate-file="createFile($event, true)"
     @rename-file="renameFile"
     @save="save"

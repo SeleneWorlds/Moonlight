@@ -1,0 +1,8 @@
+{
+  "name": "scenarios",
+  "platform": "server",
+  "schema": {
+    "name": "string",
+    "enabled": "enabled"
+  }
+}

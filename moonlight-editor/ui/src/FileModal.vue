@@ -3,7 +3,7 @@ import MoonlightSwitch from 'moonlight-ui/MoonlightSwitch.vue';
 import MoonlightSurface from 'moonlight-ui/MoonlightSurface.vue';
 import MoonlightButton from 'moonlight-ui/MoonlightButton.vue';
 import { computed, onBeforeUnmount, ref, useId, watch } from 'vue';
-import { Copy, FilePlus, Pipette, X } from '@lucide/vue';
+import { Copy, FilePlus, Pipette, X, ArrowLeftRight, Plus } from '@lucide/vue';
 import type { DistancePick, SchemaDefinition } from 'moonlight-ui/schema';
 import SchemaForm from 'moonlight-ui/SchemaForm.vue';
 import SelectInput from 'moonlight-ui/SelectInput.vue';
@@ -13,15 +13,22 @@ const searchInputId = useId();
 interface ProjectFile {
   path: string;
   name?: string;
+  registry?: string;
 }
 
 const props = defineProps<{
+  scenarioMode: boolean;
+  scenarios: string[];
+  scenarioLabels: Record<string, string>;
+  scenarioBusy: boolean;
+  scenarioCatalogLoading: boolean;
   bundles: string[];
   registries: string[];
   projectFiles: ProjectFile[];
   projectLoading: boolean;
   editorLoading: boolean;
   selectedPath: string | null;
+  selectedFileName?: string;
   isDirty: boolean;
   permissions: { apply: boolean; persist: boolean; discard: boolean; persistAll: boolean; discardAll: boolean };
   pendingChanges: number;
@@ -35,6 +42,7 @@ const props = defineProps<{
 
 const selectedBundle = defineModel<string>('selectedBundle', { required: true });
 const selectedRegistry = defineModel<string>('selectedRegistry', { required: true });
+const selectedScenario = defineModel<string>('selectedScenario', { required: true });
 const contents = defineModel<string>('contents', { required: true });
 
 const enabledField = computed(
@@ -79,19 +87,84 @@ const emit = defineEmits<{
   pickCoordinate: [field: string];
   pickDistance: [pick: DistancePick];
   pickResource: [];
-  createFile: [name: string];
+  toggleScenarioMode: [];
+  selectScenario: [];
+  createScenario: [name: string];
+  manageScenario: [];
+  createFile: [name: string, registry: string];
   duplicateFile: [name: string];
   renameFile: [path: string, name: string];
+  loadScenarios: [];
+  moveToScenario: [path: string, scenario: string];
 }>();
 
 const createDialog = ref<HTMLDialogElement | null>(null);
 const entryName = ref('');
+const entryRegistry = ref('');
+const scenarioDialog = ref<HTMLDialogElement | null>(null);
+const scenarioName = ref('');
+const scenarioSubmitted = ref(false);
+function submitScenario(): void {
+  const name = scenarioName.value.trim();
+  if (!name || Object.values(props.scenarioLabels).includes(name)) {
+    return;
+  }
+  scenarioSubmitted.value = true;
+  emit('createScenario', name);
+}
+watch(
+  () => [props.scenarioBusy, props.status] as const,
+  ([busy]) => {
+    if (scenarioSubmitted.value && !busy) {
+      scenarioSubmitted.value = false;
+      if (!props.statusIsError) {
+        scenarioDialog.value?.close();
+      }
+    }
+  },
+);
 const createSubmitted = ref(false);
 const createAttempted = ref(false);
 const duplicating = ref(false);
 const renamingPath = ref<string | null>(null);
 const contextPath = ref<string | null>(null);
 
+const moveDialog = ref<HTMLDialogElement | null>(null);
+const movePath = ref<string | null>(null);
+const moveTarget = ref('');
+const moveSubmitted = ref(false);
+function openMoveDialog(path: string): void {
+  movePath.value = path;
+  moveTarget.value = '';
+  moveSubmitted.value = false;
+  contextPath.value = null;
+  emit('loadScenarios');
+  moveDialog.value?.showModal();
+}
+function submitMove(): void {
+  if (
+    !movePath.value ||
+    !moveTarget.value ||
+    props.scenarioCatalogLoading ||
+    props.scenarioBusy ||
+    moveSubmitted.value
+  ) {
+    return;
+  }
+  moveSubmitted.value = true;
+  emit('moveToScenario', movePath.value, moveTarget.value);
+}
+watch(
+  () => [props.scenarioBusy, props.status] as const,
+  ([busy]) => {
+    if (moveSubmitted.value && !busy) {
+      moveSubmitted.value = false;
+      if (!props.statusIsError) {
+        moveDialog.value?.close();
+      }
+    }
+  },
+);
 function openRenameDialog(path: string): void {
   openCreateDialog();
   renamingPath.value = path;
@@ -114,8 +187,11 @@ const entryNameError = computed(() => {
     ? `${renamingPath.value.slice(0, renamingPath.value.lastIndexOf('/') + 1)}${name}.json`
     : null;
   if (
-    props.projectFiles.some(({ path }) =>
-      targetPath ? path === targetPath : pathWithinRegistry(path) === `${name}.json`,
+    props.projectFiles.some(({ path, registry }) =>
+      targetPath
+        ? path === targetPath
+        : pathWithinRegistry(path) === `${name}.json` &&
+          (!props.scenarioMode || registry === (duplicating.value ? selectedRegistry.value : entryRegistry.value)),
     )
   ) {
     return 'An entry with this name already exists.';
@@ -125,6 +201,9 @@ const entryNameError = computed(() => {
 
 function openCreateDialog(duplicate = false): void {
   renamingPath.value = null;
+  entryRegistry.value = props.registries.includes(selectedRegistry.value)
+    ? selectedRegistry.value
+    : props.registries[0] || '';
   duplicating.value = duplicate;
   entryName.value = duplicate
     ? `${
@@ -156,7 +235,7 @@ function submitCreate(): void {
   } else if (duplicating.value) {
     emit('duplicateFile', entryName.value.trim());
   } else {
-    emit('createFile', entryName.value.trim());
+    emit('createFile', entryName.value.trim(), entryRegistry.value);
   }
 }
 
@@ -198,6 +277,8 @@ function requestConfirmation(action: 'persist' | 'discard', path: string | null 
 const confirmationDialog = ref<HTMLDialogElement | null>(null);
 onBeforeUnmount(() => {
   createDialog.value?.close();
+  scenarioDialog.value?.close();
+  moveDialog.value?.close();
   confirmationDialog.value?.close();
 });
 watch(confirmation, (action) => {
@@ -249,9 +330,11 @@ const filteredFiles = computed(() => {
     .filter(({ path, name }) => !query || path.toLowerCase().includes(query) || name?.toLowerCase().includes(query))
     .sort((a, b) => Number(changedPaths.has(b.path)) - Number(changedPaths.has(a.path)));
 });
-watch([selectedBundle, selectedRegistry], () => {
+watch([selectedBundle, selectedRegistry, selectedScenario, () => props.scenarioMode], () => {
   fileSearch.value = '';
   closeCreateDialog();
+  scenarioDialog.value?.close();
+  moveDialog.value?.close();
 });
 
 function pathWithinRegistry(path: string): string {
@@ -276,13 +359,64 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
         <div class="browser-content ml-grow ml-scroll ml-pad ml-stack ml-gap">
           <div class="bundle-picker moonlight-field">
             <span class="moonlight-field-label">Bundle</span>
-            <SelectInput v-model="selectedBundle" :options="bundles" label="Bundle" @change="emit('selectBundle')" />
+            <SelectInput
+              v-model="selectedBundle"
+              :options="bundles"
+              :disabled="scenarioBusy"
+              label="Bundle"
+              @change="emit('selectBundle')"
+            />
           </div>
           <div class="bundle-picker moonlight-field">
-            <span class="moonlight-field-label">Registry</span>
+            <span class="moonlight-field-label ml-row">
+              <span class="ml-grow">{{ scenarioMode ? 'Scenario' : 'Registry' }}</span>
+              <MoonlightButton
+                size="icon"
+                type="button"
+                :aria-pressed="scenarioMode"
+                :disabled="scenarioBusy"
+                title="Switch between registry and scenario"
+                aria-label="Switch between registry and scenario"
+                @click="emit('toggleScenarioMode')"
+                ><ArrowLeftRight :size="16" aria-hidden="true"
+              /></MoonlightButton>
+            </span>
+            <div v-if="scenarioMode" class="ml-row ml-gap">
+              <SelectInput
+                v-model="selectedScenario"
+                :options="scenarios"
+                :option-labels="scenarioLabels"
+                :disabled="scenarioBusy || projectLoading"
+                label="Scenario"
+                @change="emit('selectScenario')"
+              />
+              <MoonlightButton
+                type="button"
+                size="icon"
+                title="New Scenario"
+                aria-label="New Scenario"
+                :disabled="!selectedBundle || projectLoading || scenarioBusy"
+                @click="
+                  scenarioName = '';
+                  scenarioSubmitted = false;
+                  scenarioDialog?.showModal();
+                "
+                ><Plus :size="16" aria-hidden="true"
+              /></MoonlightButton>
+            </div>
+            <MoonlightButton
+              v-if="scenarioMode && selectedScenario"
+              type="button"
+              :disabled="scenarioBusy || projectLoading || editorLoading"
+              @click="emit('manageScenario')"
+            >
+              Manage Scenario
+            </MoonlightButton>
             <SelectInput
+              v-if="!scenarioMode"
               v-model="selectedRegistry"
               :options="registries"
+              :disabled="scenarioBusy"
               label="Registry"
               @change="emit('requestProject')"
             />
@@ -303,7 +437,7 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
                 size="icon"
                 class="close"
                 type="button"
-                :disabled="!selectedBundle || !selectedRegistry"
+                :disabled="scenarioMode || !selectedBundle || !selectedRegistry"
                 title="Pick a resource in this registry from the world"
                 aria-label="Pick a resource in this registry from the world"
                 @click="emit('pickResource')"
@@ -314,7 +448,13 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
                 size="icon"
                 class="close"
                 type="button"
-                :disabled="!selectedBundle || !selectedRegistry || projectLoading || editorLoading"
+                :disabled="
+                  !selectedBundle ||
+                  (scenarioMode ? !selectedScenario : !selectedRegistry) ||
+                  projectLoading ||
+                  editorLoading ||
+                  scenarioBusy
+                "
                 title="Create a new registry entry"
                 aria-label="Create a new registry entry"
                 @click="openCreateDialog()"
@@ -327,7 +467,13 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
             <span class="spinner moonlight-spinner" aria-hidden="true" />
           </div>
           <p v-else-if="filteredFiles.length === 0" class="files-empty moonlight-empty" role="status">
-            {{ fileSearch.trim() ? 'No matching files.' : 'No files in this registry.' }}
+            {{
+              fileSearch.trim()
+                ? 'No matching files.'
+                : scenarioMode
+                  ? 'No entries in this scenario.'
+                  : 'No files in this registry.'
+            }}
           </p>
           <ul v-else class="files moonlight-list">
             <li
@@ -383,6 +529,16 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
                 >
                   Rename
                 </MoonlightButton>
+                <MoonlightButton
+                  class="moonlight-item"
+                  variant="ghost"
+                  type="button"
+                  role="menuitem"
+                  :disabled="editorLoading || projectLoading || scenarioBusy"
+                  @pointerdown.prevent
+                  @click="openMoveDialog(file.path)"
+                  >Move to Scenario</MoonlightButton
+                >
               </MoonlightSurface>
             </li>
           </ul>
@@ -421,7 +577,7 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
           </MoonlightSwitch>
           <span class="path moonlight-description ml-grow">
             <template v-if="selectedPath">
-              <span>{{ selectedFile?.name ?? pathWithinRegistry(selectedPath) }}</span>
+              <span>{{ selectedFileName ?? selectedFile?.name ?? pathWithinRegistry(selectedPath) }}</span>
               <small class="ml-truncate">({{ pathWithinRegistry(selectedPath) }})</small>
             </template>
             <template v-else>Select a file</template>
@@ -532,6 +688,70 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
         </footer>
       </main>
       <dialog
+        ref="moveDialog"
+        class="confirmation moonlight-dialog"
+        aria-labelledby="move-scenario-title"
+        @cancel.prevent="!scenarioBusy && moveDialog?.close()"
+      >
+        <form @submit.prevent="submitMove">
+          <h2 id="move-scenario-title">Move to Scenario</h2>
+          <p class="moonlight-description">{{ movePath ? pathWithinRegistry(movePath) : '' }}</p>
+          <label class="moonlight-field">
+            <span>Scenario</span>
+            <SelectInput
+              v-model="moveTarget"
+              :options="scenarios"
+              :option-labels="scenarioLabels"
+              label="Target scenario"
+              :disabled="scenarioCatalogLoading || scenarioBusy"
+            />
+          </label>
+          <p v-if="scenarioCatalogLoading" role="status">Loading scenarios…</p>
+          <p v-else-if="!scenarios.length" class="moonlight-description">
+            Create a scenario first using the scenario picker.
+          </p>
+          <p v-if="statusIsError" class="moonlight-error" role="alert">{{ status }}</p>
+          <div class="ml-row ml-end ml-gap">
+            <MoonlightButton type="button" :disabled="scenarioBusy" @click="moveDialog?.close()"
+              >Cancel</MoonlightButton
+            >
+            <MoonlightButton
+              type="submit"
+              :disabled="!moveTarget || scenarioCatalogLoading || scenarioBusy || moveSubmitted"
+              >Move</MoonlightButton
+            >
+          </div>
+        </form>
+      </dialog>
+      <dialog ref="scenarioDialog" class="confirmation moonlight-dialog" aria-labelledby="new-scenario-title">
+        <form @submit.prevent="submitScenario">
+          <h2 id="new-scenario-title">New Scenario</h2>
+          <label class="moonlight-field"
+            ><span>Name</span
+            ><input class="moonlight-input" v-model="scenarioName" required autofocus :disabled="scenarioBusy"
+          /></label>
+          <p v-if="Object.values(scenarioLabels).includes(scenarioName.trim())" class="moonlight-error">
+            A scenario with this name already exists.
+          </p>
+          <p v-if="statusIsError && !scenarioBusy" class="moonlight-error" role="alert">{{ status }}</p>
+          <div class="ml-row ml-end ml-gap">
+            <MoonlightButton type="button" :disabled="scenarioBusy" @click="scenarioDialog?.close()"
+              >Cancel</MoonlightButton
+            >
+            <MoonlightButton
+              type="submit"
+              :disabled="
+                scenarioBusy ||
+                !scenarioName.trim() ||
+                !/[a-zA-Z0-9_-]/.test(scenarioName) ||
+                Object.values(scenarioLabels).includes(scenarioName.trim())
+              "
+              >Create</MoonlightButton
+            >
+          </div>
+        </form>
+      </dialog>
+      <dialog
         ref="createDialog"
         class="confirmation moonlight-dialog"
         aria-labelledby="create-entry-title"
@@ -541,6 +761,10 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
           <h2 id="create-entry-title">
             {{ renamingPath ? 'Rename entry' : duplicating ? 'Duplicate entry' : 'New entry' }}
           </h2>
+          <label v-if="scenarioMode && !renamingPath && !duplicating" class="bundle-picker moonlight-field">
+            <span>Registry</span
+            ><SelectInput v-model="entryRegistry" :options="registries" label="Registry" :disabled="createSubmitted" />
+          </label>
           <label class="bundle-picker moonlight-field">
             <span>Name</span>
             <input
@@ -569,7 +793,7 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
               variant="primary"
               class="save"
               type="submit"
-              :disabled="!!entryNameError || createSubmitted"
+              :disabled="!!entryNameError || createSubmitted || (scenarioMode && !entryRegistry)"
             >
               {{ createSubmitted ? (renamingPath ? 'Renaming…' : 'Creating…') : renamingPath ? 'Rename' : 'Create' }}
             </MoonlightButton>
