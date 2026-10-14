@@ -1341,7 +1341,7 @@ onBeforeUnmount(() => {
       v-for="gizmo in projectedGizmos"
       :key="gizmo.id"
       class="gizmo"
-      :interactive="!!(gizmo.path || gizmo.lookup || gizmo.range !== undefined) && !pickingDistance && !dragging"
+      :interactive="!!(gizmo.label || gizmo.path || gizmo.lookup || gizmo.range !== undefined) && !pickingDistance && !dragging"
       :style="{ left: `${gizmo.screen.x}px`, top: `${gizmo.screen.y}px`, '--gizmo-color': gizmo.color ?? '#f29d49' }"
       :label="gizmo.label"
       :visual="gizmo.visual"
