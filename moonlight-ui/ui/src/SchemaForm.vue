@@ -29,9 +29,10 @@ const props = defineProps<{
   fieldLabels?: Record<string, string>;
   hideFieldLabels?: boolean;
   expandedFields?: string[];
+  keepSelectionOpenOnShift?: boolean;
 }>();
 const emit = defineEmits<{
-  updateContents: [contents: string];
+  updateContents: [contents: string, keepSelectionOpen?: boolean];
   searchRegistry: [registry: string, query: string, lookup?: boolean];
   pickCoordinate: [field: string];
   pickDistance: [pick: DistancePick];
@@ -116,11 +117,11 @@ function label(name: string): string {
   return name.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/^./, (value) => value.toUpperCase());
 }
 
-function update(name: string, value: unknown): void {
+function update(name: string, value: unknown, keepSelectionOpen = false): void {
   if (props.readonly || !parsed.value) {
     return;
   }
-  emit('updateContents', `${JSON.stringify({ ...parsed.value, [name]: value }, null, 2)}\n`);
+  emit('updateContents', `${JSON.stringify({ ...parsed.value, [name]: value }, null, 2)}\n`, keepSelectionOpen);
 }
 
 function remove(name: string): void {
@@ -264,8 +265,12 @@ function openRegistryEntry(name: string, registry: string): void {
   }
 }
 
-function selectRegistry(name: string, option: RegistryOption): void {
-  update(name, option.value);
+function selectRegistry(name: string, option: RegistryOption, event: MouseEvent): void {
+  const keepOpen = !!props.keepSelectionOpenOnShift && event.shiftKey;
+  update(name, option.value, keepOpen);
+  if (keepOpen) {
+    return;
+  }
   registryQueries[name] = option.label;
   openRegistryField.value = null;
 }
@@ -448,6 +453,7 @@ function closeRegistry(name: string): void {
         <MoonlightButton
           type="button"
           :disabled="readonly || !distancePick(field)"
+          variant="primary"
           :aria-label="`Preview and pick ${label(field.name)} in the world`"
           :title="
             distancePick(field) ? 'Preview and pick distance in the world' : 'Set the referenced coordinate first'
@@ -513,6 +519,7 @@ function closeRegistry(name: string): void {
       <SelectInput
         v-else-if="field.type === 'enum'"
         appearance="form"
+        :keep-open-on-shift="keepSelectionOpenOnShift"
         :disabled="readonly"
         :label="fieldLabels?.[field.name] ?? label(field.name)"
         :model-value="String(field.values?.findIndex((option) => option.value === parsed![field.name]) ?? -1)"
@@ -523,7 +530,7 @@ function closeRegistry(name: string): void {
             ...(field.values ?? []).map((option, index) => [String(index), option.label]),
           ])
         "
-        @update:model-value="update(field.name, field.values?.[Number($event)]?.value)"
+        @select="(option, keepOpen) => update(field.name, field.values?.[Number(option)]?.value, keepOpen)"
       />
       <RangeInput
         :readonly="readonly"
@@ -566,6 +573,7 @@ function closeRegistry(name: string): void {
         <MoonlightButton
           type="button"
           class="view-coordinate"
+          variant="secondary"
           :aria-label="`Move camera to ${label(field.name)}`"
           title="Move camera to coordinate"
           :disabled="!cameraCoordinate(field.name)"
@@ -631,7 +639,7 @@ function closeRegistry(name: string): void {
             role="option"
             :aria-selected="parsed[field.name] === option.value"
             @mousedown.prevent
-            @click="selectRegistry(field.name, option)"
+            @click="selectRegistry(field.name, option, $event)"
           >
             <RegistryVisual v-if="option.visual" :identifier="option.visual" />
             <span class="option-text moonlight-description"
@@ -723,6 +731,8 @@ select {
   width: 36px;
   height: 36px;
   padding: 0;
+}
+.pick-coordinate {
   border: 1px solid rgba(251, 113, 133, 0.42);
   border-radius: 6px;
   color: #ffe4e6;
@@ -730,15 +740,9 @@ select {
   cursor: pointer;
 }
 .pick-coordinate:hover,
-.pick-coordinate:focus-visible,
-.view-coordinate:hover:not(:disabled),
-.view-coordinate:focus-visible {
+.pick-coordinate:focus-visible {
   outline: none;
   background: rgba(251, 113, 133, 0.24);
-}
-.view-coordinate:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
 .coordinate-input label,
 .range-input label {

@@ -538,7 +538,7 @@ function apply(): void {
         >Area Picker · {{ summary }}</MoonlightButton
       >
       <MoonlightButton
-        variant="primary"
+        variant="secondary"
         class="view-coordinate"
         type="button"
         aria-label="Move camera to area"
@@ -759,20 +759,6 @@ function apply(): void {
   width: 36px;
   height: 36px;
   padding: 0;
-  border: 1px solid rgba(251, 113, 133, 0.42);
-  border-radius: 6px;
-  color: #ffe4e6;
-  background: rgba(251, 113, 133, 0.14);
-  cursor: pointer;
-}
-.view-coordinate:hover:not(:disabled),
-.view-coordinate:focus-visible {
-  outline: none;
-  background: rgba(251, 113, 133, 0.24);
-}
-.view-coordinate:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
 .area-picker {
   width: min(1200px, calc(100vw - 48px));

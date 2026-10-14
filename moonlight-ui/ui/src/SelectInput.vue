@@ -8,9 +8,10 @@ const props = defineProps<{
   optionLabels?: Record<string, string>;
   disabled?: boolean;
   appearance?: 'form' | 'compact';
+  keepOpenOnShift?: boolean;
 }>();
 const value = defineModel<string>({ required: true });
-const emit = defineEmits<{ change: [] }>();
+const emit = defineEmits<{ change: []; select: [option: string, keepOpen: boolean] }>();
 const id = useId();
 const root = ref<HTMLElement>();
 const input = ref<HTMLInputElement>();
@@ -45,8 +46,12 @@ function search(event: Event): void {
   active.value = filteredOptions.value.length ? 0 : -1;
 }
 
-function select(option: string): void {
-  close();
+function select(option: string, event: MouseEvent | KeyboardEvent): void {
+  const keepOpen = !!props.keepOpenOnShift && event.shiftKey;
+  if (!keepOpen) {
+    close();
+  }
+  emit('select', option, keepOpen);
   if (value.value !== option) {
     value.value = option;
     emit('change');
@@ -71,7 +76,7 @@ function keydown(event: KeyboardEvent): void {
     event.preventDefault();
     const option = filteredOptions.value[active.value];
     if (option !== undefined) {
-      select(option);
+      select(option, event);
     }
   }
 }
@@ -82,7 +87,16 @@ function closeOutside(event: PointerEvent): void {
   }
 }
 
-watch(() => [props.options, value.value], close);
+watch(
+  () => [props.options, value.value],
+  () => {
+    if (!props.keepOpenOnShift || !open.value) {
+      close();
+    } else {
+      active.value = Math.min(active.value, filteredOptions.value.length - 1);
+    }
+  },
+);
 watch([active, open, filteredOptions], async () => {
   await nextTick();
   popup.value?.children[active.value]?.scrollIntoView({ block: 'nearest' });
@@ -137,7 +151,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', closeOutside));
         :class="{ active: active === index }"
         @pointerdown.prevent
         @pointermove="active = index"
-        @click.prevent="select(option)"
+        @click.prevent="select(option, $event)"
       >
         <span>{{ optionLabel(option) }}</span>
         <Check v-if="value === option" :size="14" aria-hidden="true" />

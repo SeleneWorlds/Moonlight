@@ -570,11 +570,8 @@
   overflow: auto;
   min-height: 0;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.moonlight-form-scroll .options {
-  position: relative;
-  inset: auto;
-  margin-top: 4px;
+  /* Keep room for a full-height popup even when every menu is closed. */
+  padding-bottom: calc(min(270px, 60vh) + 32px);
 }
 @media (max-width: 480px) {
   .moonlight-form-scroll {

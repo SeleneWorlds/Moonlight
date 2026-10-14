@@ -95,6 +95,38 @@ const selectedKey = computed(() => {
   return typeof key === 'string' || typeof key === 'number' ? String(key) : '';
 });
 const duplicate = computed(() => Object.prototype.hasOwnProperty.call(entries.value, selectedKey.value));
+const addOnSelection = computed(
+  () => !!keyRegistry.value || (typeof props.keyType !== 'string' && props.keyType.type === 'enum'),
+);
+const draftFormKey = ref(0);
+function availableKey(value: unknown): boolean {
+  return !Object.prototype.hasOwnProperty.call(entries.value, String(value));
+}
+const availableKeyType = computed(() =>
+  typeof props.keyType !== 'string' && props.keyType.type === 'enum'
+    ? { ...props.keyType, values: props.keyType.values?.filter((option) => availableKey(option.value)) }
+    : props.keyType,
+);
+const availableKeyRegistryOptions = computed(() => {
+  const registry = keyRegistry.value;
+  if (!registry) {
+    return props.registryOptions;
+  }
+  return {
+    ...props.registryOptions,
+    [registry]: (props.registryOptions[registry] ?? []).filter((option) => availableKey(option.value)),
+  };
+});
+
+function updateDraft(contents: string, keepSelectionOpen = false): void {
+  draft.value = contents;
+  if (addOnSelection.value) {
+    add();
+    if (!keepSelectionOpen) {
+      draftFormKey.value++;
+    }
+  }
+}
 
 function add(): void {
   if (props.readonly) {
@@ -323,16 +355,19 @@ function valueLabel(value: unknown): string {
     </template>
     <div v-if="!readonly" class="add-entry">
       <SchemaForm
-        :key="contents"
+        :key="addOnSelection ? draftFormKey : contents"
+        :keep-selection-open-on-shift="addOnSelection"
         :hide-field-labels="primitiveValue"
-        :schema="{ key: keyType }"
+        :schema="{ key: availableKeyType }"
         :contents="draft"
-        :registry-options="registryOptions"
+        :registry-options="availableKeyRegistryOptions"
         :readonly="readonly"
-        @update-contents="draft = $event"
+        @update-contents="updateDraft"
         @search-registry="(registry, query, lookup) => emit('searchRegistry', registry, query, lookup)"
       />
-      <MoonlightButton type="button" :disabled="!selectedKey || duplicate" @click="add">Add entry</MoonlightButton>
+      <MoonlightButton v-if="!addOnSelection" type="button" :disabled="!selectedKey || duplicate" @click="add">
+        Add entry
+      </MoonlightButton>
     </div>
     <small v-if="duplicate" role="status">This key already exists.</small>
   </div>
