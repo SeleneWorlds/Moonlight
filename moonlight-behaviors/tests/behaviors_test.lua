@@ -1,9 +1,9 @@
 package.path = "bundles/moonlight/?.lua;" .. package.path
-local Scenarios = require("moonlight-scenarios.server.lua.scenarios")
-local runner = Scenarios:new()
+local Behaviors = require("moonlight-behaviors.server.lua.behaviors")
+local runner = Behaviors:new()
 local context = { log = {}, debuffed = false }
-runner:registerAction("inform", function(action, state, scenario)
-    assert(scenario.actions)
+runner:registerAction("inform", function(action, state, behavior)
+    assert(behavior.actions)
     state.log[#state.log + 1] = action.data
     return false
 end, "string")
@@ -35,14 +35,14 @@ assert(#runner:run(skippedAction, context) == 0)
 local dispatched = runner:emit("enter", {
     { event = "other", actions = {} }, rejected, definition, { actions = definition.actions }
 }, context)
-assert(#dispatched == 2 and dispatched[1].scenarioIndex == 2 and #dispatched[1].results == 0)
-assert(dispatched[2].scenario == definition and #dispatched[2].results == 4)
+assert(#dispatched == 2 and dispatched[1].behaviorIndex == 2 and #dispatched[1].results == 0)
+assert(dispatched[2].behavior == definition and #dispatched[2].results == 4)
 assert(#runner:emit("missing", { definition }, context) == 0)
 assert(#runner:run({ actions = {} }) == 0)
 
 -- Whole-list validation prevents even early valid actions from running.
 local calls = 0
-local isolated = Scenarios:new():registerAction("count", function() calls = calls + 1 end)
+local isolated = Behaviors:new():registerAction("count", function() calls = calls + 1 end)
 local valid = { event = "enter", actions = { { type = "count" } } }
 assert(not pcall(function() isolated:run({ actions = { { type = "count" }, { type = "unknown" } } }) end))
 assert(not pcall(function() isolated:emit("enter", { valid, { event = "other", actions = {{ type = "unknown" }} } }) end))
@@ -82,4 +82,4 @@ for _, register in ipairs({ "registerAction", "registerCondition" }) do
     assert(not pcall(function() runner[register](runner, "bad", false) end))
     assert(not pcall(function() runner[register](runner, "bad", function() end, {}) end))
 end
-print("scenarios tests passed")
+print("behaviors tests passed")

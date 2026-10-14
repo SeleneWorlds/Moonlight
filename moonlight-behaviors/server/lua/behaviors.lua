@@ -1,5 +1,5 @@
-local Scenarios = {}
-Scenarios.__index = Scenarios
+local Behaviors = {}
+Behaviors.__index = Behaviors
 
 local function name(value, label)
     assert(type(value) == "string" and value ~= "", label .. " must be a non-empty string")
@@ -15,7 +15,7 @@ local function array(value, label)
     for i = 1, count do assert(value[i] ~= nil, label .. " must be a dense array") end
 end
 
-function Scenarios:new()
+function Behaviors:new()
     return setmetatable({ _actions = {}, _conditions = {}, _actionSchemas = {}, _conditionSchemas = {} }, self)
 end
 
@@ -28,12 +28,12 @@ local function register(handlers, schemas, kind, handler, schema)
     handlers[kind], schemas[kind] = handler, schema
 end
 
-function Scenarios:registerAction(kind, handler, schema)
+function Behaviors:registerAction(kind, handler, schema)
     register(self._actions, self._actionSchemas, kind, handler, schema)
     return self
 end
 
-function Scenarios:registerCondition(kind, handler, schema)
+function Behaviors:registerCondition(kind, handler, schema)
     register(self._conditions, self._conditionSchemas, kind, handler, schema)
     return self
 end
@@ -58,7 +58,7 @@ local function typedSchema(handlers, schemas, properties)
     return { type = "object", properties = properties }
 end
 
-function Scenarios:schema()
+function Behaviors:schema()
     local conditions = { type = "array", optional = true,
         valueType = typedSchema(self._conditions, self._conditionSchemas, {}) }
     return { type = "object", properties = {
@@ -81,8 +81,8 @@ local function validateConditions(self, conditions)
 end
 
 -- Check every action before any callback can produce side effects.
-function Scenarios:validate(definition)
-    assert(type(definition) == "table", "Scenario must be a table")
+function Behaviors:validate(definition)
+    assert(type(definition) == "table", "Behavior must be a table")
     if definition.event ~= nil then name(definition.event, "Event") end
     validateConditions(self, definition.conditions)
     array(definition.actions, "Actions")
@@ -115,21 +115,21 @@ local function execute(self, definition, context)
     return results
 end
 
-function Scenarios:run(definition, context)
+function Behaviors:run(definition, context)
     self:validate(definition)
     return execute(self, definition, context)
 end
 
 -- Consumers bridge their event sources to this dispatcher; no global listeners.
-function Scenarios:emit(event, definitions, context)
+function Behaviors:emit(event, definitions, context)
     name(event, "Event")
-    array(definitions, "Scenarios")
+    array(definitions, "Behaviors")
     for _, definition in ipairs(definitions) do self:validate(definition) end
     local results = {}
     for index, definition in ipairs(definitions) do
         if definition.event == event then
             results[#results + 1] = {
-                scenario = definition, scenarioIndex = index,
+                behavior = definition, behaviorIndex = index,
                 results = execute(self, definition, context)
             }
         end
@@ -137,4 +137,4 @@ function Scenarios:emit(event, definitions, context)
     return results
 end
 
-return Scenarios
+return Behaviors
