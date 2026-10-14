@@ -137,3 +137,74 @@ test('both consumers use the same presentation and contain no application styles
     assert.doesNotMatch(readFileSync(resolve(directory, filename), 'utf8'), /moonlight-(admin|editor)/);
   }
 });
+
+test('shared modals space content and actions and preserve native dialog behavior', () => {
+  let submitted;
+  let cancelled;
+  const { element, control, app } = mount(
+    'MoonlightModal',
+    {
+      title: 'New entry',
+      onSubmit: (event) => {
+        submitted = event;
+      },
+      onCancel: (event) => {
+        cancelled = event;
+      },
+    },
+    {
+      default: () => h('input', { required: true }),
+      actions: () => h('button', { type: 'submit' }, 'Create'),
+    },
+  );
+  assert.equal(element.type, 'dialog');
+  const form = element.children.find((child) => child.type === 'form');
+  assert.equal(form.props.class, 'ml-stack ml-gap');
+  const title = form.children.find((child) => child.type === 'h2');
+  assert.equal(title.text, 'New entry');
+  assert.equal(element.props['aria-labelledby'], title.props.id);
+  const actions = form.children.find((child) => child.type === 'div');
+  assert.equal(actions.props.class, 'ml-row ml-end ml-gap');
+  assert.equal(actions.children.find((child) => child.type === 'button').props.type, 'submit');
+  const escape = {
+    key: 'Escape',
+    stopPropagation() {
+      this.stopped = true;
+    },
+    preventDefault() {
+      this.prevented = true;
+    },
+  };
+  element.props.onKeydown(escape);
+  assert.equal(escape.stopped, true);
+  assert.equal(escape.prevented, undefined);
+  const enter = {
+    key: 'Enter',
+    stopPropagation() {
+      this.stopped = true;
+    },
+  };
+  element.props.onKeydown(enter);
+  assert.equal(enter.stopped, undefined);
+  const event = {
+    preventDefault() {
+      this.prevented = true;
+    },
+  };
+  form.props.onSubmit(event);
+  assert.equal(submitted, event);
+  assert.equal(event.prevented, true);
+  element.props.onCancel(event);
+  assert.equal(cancelled, event);
+  element.showModal = () => {
+    element.open = true;
+  };
+  element.close = () => {
+    element.open = false;
+  };
+  control.showModal();
+  assert.equal(element.open, true);
+  control.close();
+  assert.equal(element.open, false);
+  app.unmount();
+});

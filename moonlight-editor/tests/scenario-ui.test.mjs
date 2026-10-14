@@ -22,6 +22,15 @@ const module = { exports: {} };
 new Function('require', 'module', 'exports', code)(
   (id) => {
     if (id === './scenarios') return scenarios;
+    if (id === 'moonlight-ui/MoonlightModal.vue') {
+      const filename = fileURLToPath(new URL('../../moonlight-ui/ui/src/MoonlightModal.vue', import.meta.url));
+      const { descriptor } = parse(readFileSync(filename, 'utf8'), { filename });
+      const script = compileScript(descriptor, { id: 'modal', inlineTemplate: true });
+      const { code } = transformSync(script.content, { loader: 'ts', format: 'cjs' });
+      const modal = { exports: {} };
+      new Function('require', 'module', 'exports', code)(require, modal, modal.exports);
+      return modal.exports;
+    }
     if (id.endsWith('.vue'))
       return {
         inheritAttrs: false,

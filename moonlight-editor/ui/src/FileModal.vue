@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MoonlightModal from 'moonlight-ui/MoonlightModal.vue';
 import MoonlightSwitch from 'moonlight-ui/MoonlightSwitch.vue';
 import MoonlightSurface from 'moonlight-ui/MoonlightSurface.vue';
 import MoonlightButton from 'moonlight-ui/MoonlightButton.vue';
@@ -100,10 +101,10 @@ const emit = defineEmits<{
   moveToScenario: [path: string, scenario: string];
 }>();
 
-const createDialog = ref<HTMLDialogElement | null>(null);
+const createDialog = ref<InstanceType<typeof MoonlightModal> | null>(null);
 const entryName = ref('');
 const entryRegistry = ref('');
-const scenarioDialog = ref<HTMLDialogElement | null>(null);
+const scenarioDialog = ref<InstanceType<typeof MoonlightModal> | null>(null);
 const scenarioName = ref('');
 const scenarioSubmitted = ref(false);
 function submitScenario(): void {
@@ -150,7 +151,7 @@ async function openEntryContextMenu(event: MouseEvent, path: string): Promise<vo
   contextPosition.value = { x: (left - bounds.left) / scaleX, y: (top - bounds.top) / scaleY };
 }
 
-const moveDialog = ref<HTMLDialogElement | null>(null);
+const moveDialog = ref<InstanceType<typeof MoonlightModal> | null>(null);
 const movePath = ref<string | null>(null);
 const moveTarget = ref('');
 const moveSubmitted = ref(false);
@@ -296,7 +297,7 @@ function requestConfirmation(action: 'persist' | 'discard', path: string | null 
   confirmation.value = action;
 }
 
-const confirmationDialog = ref<HTMLDialogElement | null>(null);
+const confirmationDialog = ref<InstanceType<typeof MoonlightModal> | null>(null);
 onBeforeUnmount(() => {
   createDialog.value?.close();
   scenarioDialog.value?.close();
@@ -720,133 +721,114 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
           {{ status }}
         </footer>
       </main>
-      <dialog
+      <MoonlightModal
         ref="moveDialog"
-        class="confirmation moonlight-dialog"
-        aria-labelledby="move-scenario-title"
+        title="Move to Scenario"
+        @submit="submitMove"
         @cancel.prevent="!scenarioBusy && moveDialog?.close()"
       >
-        <form class="ml-stack ml-gap" @submit.prevent="submitMove">
-          <h2 id="move-scenario-title">Move to Scenario</h2>
-          <p class="moonlight-description">{{ movePath ? pathWithinRegistry(movePath) : '' }}</p>
-          <label class="moonlight-field">
-            <span>Scenario</span>
-            <SelectInput
-              v-model="moveTarget"
-              :options="scenarios"
-              :option-labels="scenarioLabels"
-              label="Target scenario"
-              :disabled="scenarioCatalogLoading || scenarioBusy"
-            />
-          </label>
-          <p v-if="scenarioCatalogLoading" role="status">Loading scenarios…</p>
-          <p v-else-if="!scenarios.length" class="moonlight-description">
-            Create a scenario first using the scenario picker.
-          </p>
-          <p v-if="statusIsError" class="moonlight-error" role="alert">{{ status }}</p>
-          <div class="ml-row ml-end ml-gap">
-            <MoonlightButton type="button" :disabled="scenarioBusy" @click="moveDialog?.close()"
-              >Cancel</MoonlightButton
-            >
-            <MoonlightButton
-              type="submit"
-              :disabled="!moveTarget || scenarioCatalogLoading || scenarioBusy || moveSubmitted"
-              >Move</MoonlightButton
-            >
-          </div>
-        </form>
-      </dialog>
-      <dialog ref="scenarioDialog" class="confirmation moonlight-dialog" aria-labelledby="new-scenario-title">
-        <form @submit.prevent="submitScenario">
-          <h2 id="new-scenario-title">New Scenario</h2>
-          <label class="moonlight-field"
-            ><span>Name</span
-            ><input class="moonlight-input" v-model="scenarioName" required autofocus :disabled="scenarioBusy"
-          /></label>
-          <p v-if="Object.values(scenarioLabels).includes(scenarioName.trim())" class="moonlight-error">
-            A scenario with this name already exists.
-          </p>
-          <p v-if="statusIsError && !scenarioBusy" class="moonlight-error" role="alert">{{ status }}</p>
-          <div class="ml-row ml-end ml-gap">
-            <MoonlightButton type="button" :disabled="scenarioBusy" @click="scenarioDialog?.close()"
-              >Cancel</MoonlightButton
-            >
-            <MoonlightButton
-              type="submit"
-              :disabled="
-                scenarioBusy ||
-                !scenarioName.trim() ||
-                !/[a-zA-Z0-9_-]/.test(scenarioName) ||
-                Object.values(scenarioLabels).includes(scenarioName.trim())
-              "
-              >Create</MoonlightButton
-            >
-          </div>
-        </form>
-      </dialog>
-      <dialog
+        <p class="moonlight-description">{{ movePath ? pathWithinRegistry(movePath) : '' }}</p>
+        <label class="moonlight-field">
+          <span>Scenario</span>
+          <SelectInput
+            v-model="moveTarget"
+            :options="scenarios"
+            :option-labels="scenarioLabels"
+            label="Target scenario"
+            :disabled="scenarioCatalogLoading || scenarioBusy"
+          />
+        </label>
+        <p v-if="scenarioCatalogLoading" role="status">Loading scenarios…</p>
+        <p v-else-if="!scenarios.length" class="moonlight-description">
+          Create a scenario first using the scenario picker.
+        </p>
+        <p v-if="statusIsError" class="moonlight-error" role="alert">{{ status }}</p>
+        <template #actions>
+          <MoonlightButton type="button" :disabled="scenarioBusy" @click="moveDialog?.close()">Cancel</MoonlightButton>
+          <MoonlightButton
+            type="submit"
+            :disabled="!moveTarget || scenarioCatalogLoading || scenarioBusy || moveSubmitted"
+            >Move</MoonlightButton
+          >
+        </template>
+      </MoonlightModal>
+      <MoonlightModal ref="scenarioDialog" title="New Scenario" @submit="submitScenario">
+        <label class="moonlight-field"
+          ><span>Name</span
+          ><input class="moonlight-input" v-model="scenarioName" required autofocus :disabled="scenarioBusy"
+        /></label>
+        <p v-if="Object.values(scenarioLabels).includes(scenarioName.trim())" class="moonlight-error">
+          A scenario with this name already exists.
+        </p>
+        <p v-if="statusIsError && !scenarioBusy" class="moonlight-error" role="alert">{{ status }}</p>
+        <template #actions>
+          <MoonlightButton type="button" :disabled="scenarioBusy" @click="scenarioDialog?.close()"
+            >Cancel</MoonlightButton
+          >
+          <MoonlightButton
+            type="submit"
+            :disabled="
+              scenarioBusy ||
+              !scenarioName.trim() ||
+              !/[a-zA-Z0-9_-]/.test(scenarioName) ||
+              Object.values(scenarioLabels).includes(scenarioName.trim())
+            "
+            >Create</MoonlightButton
+          >
+        </template>
+      </MoonlightModal>
+      <MoonlightModal
         ref="createDialog"
-        class="confirmation moonlight-dialog"
-        aria-labelledby="create-entry-title"
+        :title="renamingPath ? 'Rename entry' : duplicating ? 'Duplicate entry' : 'New entry'"
+        @submit="submitCreate"
         @cancel.prevent="closeCreateDialog"
       >
-        <form @submit.prevent="submitCreate">
-          <h2 id="create-entry-title">
-            {{ renamingPath ? 'Rename entry' : duplicating ? 'Duplicate entry' : 'New entry' }}
-          </h2>
-          <label v-if="scenarioMode && !renamingPath && !duplicating" class="bundle-picker moonlight-field">
-            <span>Registry</span
-            ><SelectInput v-model="entryRegistry" :options="registries" label="Registry" :disabled="createSubmitted" />
-          </label>
-          <label class="bundle-picker moonlight-field">
-            <span>Name</span>
-            <input
-              class="moonlight-input"
-              v-model="entryName"
-              autofocus
-              required
-              autocomplete="off"
-              spellcheck="false"
-              :disabled="createSubmitted"
-            />
-          </label>
-          <p v-if="entryName.trim() && entryNameError" class="name-error moonlight-error" role="alert">
-            {{ entryNameError }}
-          </p>
-          <p
-            v-if="createAttempted && statusIsError && !createSubmitted"
-            class="name-error moonlight-error"
-            role="alert"
+        <label v-if="scenarioMode && !renamingPath && !duplicating" class="bundle-picker moonlight-field">
+          <span>Registry</span
+          ><SelectInput v-model="entryRegistry" :options="registries" label="Registry" :disabled="createSubmitted" />
+        </label>
+        <label class="bundle-picker moonlight-field">
+          <span>Name</span>
+          <input
+            class="moonlight-input"
+            v-model="entryName"
+            autofocus
+            required
+            autocomplete="off"
+            spellcheck="false"
+            :disabled="createSubmitted"
+          />
+        </label>
+        <p v-if="entryName.trim() && entryNameError" class="name-error moonlight-error" role="alert">
+          {{ entryNameError }}
+        </p>
+        <p v-if="createAttempted && statusIsError && !createSubmitted" class="name-error moonlight-error" role="alert">
+          {{ status }}
+        </p>
+        <template #actions>
+          <MoonlightButton class="close" type="button" @click="closeCreateDialog">Cancel</MoonlightButton>
+          <MoonlightButton
+            variant="primary"
+            class="save"
+            type="submit"
+            :disabled="!!entryNameError || createSubmitted || (scenarioMode && !entryRegistry)"
           >
-            {{ status }}
-          </p>
-          <div class="confirmation-actions ml-row ml-end">
-            <MoonlightButton class="close" type="button" @click="closeCreateDialog">Cancel</MoonlightButton>
-            <MoonlightButton
-              variant="primary"
-              class="save"
-              type="submit"
-              :disabled="!!entryNameError || createSubmitted || (scenarioMode && !entryRegistry)"
-            >
-              {{ createSubmitted ? (renamingPath ? 'Renaming…' : 'Creating…') : renamingPath ? 'Rename' : 'Create' }}
-            </MoonlightButton>
-          </div>
-        </form>
-      </dialog>
-      <dialog
+            {{ createSubmitted ? (renamingPath ? 'Renaming…' : 'Creating…') : renamingPath ? 'Rename' : 'Create' }}
+          </MoonlightButton>
+        </template>
+      </MoonlightModal>
+      <MoonlightModal
         ref="confirmationDialog"
-        class="confirmation moonlight-dialog"
-        aria-labelledby="confirmation-title"
+        :title="`${confirmation === 'persist' ? 'Persist' : 'Rollback'} changes?`"
         @cancel.prevent="confirmation = null"
       >
-        <h2 id="confirmation-title">{{ confirmation === 'persist' ? 'Persist' : 'Rollback' }} changes?</h2>
         <p v-if="confirmation === 'persist'">Write pending changes to the following resource files:</p>
         <p v-else>Restore the file-backed values for the following resources:</p>
         <ul class="resource-list moonlight-resource-list">
           <li v-for="path in confirmationPaths" :key="path">{{ path }}</li>
         </ul>
         <p v-if="confirmationPaths.length === 0">No pending resources available.</p>
-        <div class="confirmation-actions ml-row ml-end">
+        <template #actions>
           <MoonlightButton class="close" type="button" autofocus @click="confirmation = null">Cancel</MoonlightButton>
           <MoonlightButton
             :variant="confirmation === 'persist' ? 'success' : 'danger'"
@@ -857,8 +839,8 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
             {{ confirmation === 'persist' ? 'Persist' : 'Rollback' }} {{ confirmationPaths.length }}
             {{ confirmationPaths.length === 1 ? 'resource' : 'resources' }}
           </MoonlightButton>
-        </div>
-      </dialog>
+        </template>
+      </MoonlightModal>
     </MoonlightSurface>
   </div>
 </template>

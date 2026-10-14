@@ -1,3 +1,4 @@
+export { default as MoonlightModal } from './MoonlightModal.vue';
 export { default as ButtonGroup } from './ButtonGroup.vue';
 export { default as MoonlightSurface } from './MoonlightSurface.vue';
 export { default as MoonlightSwitch } from './MoonlightSwitch.vue';
