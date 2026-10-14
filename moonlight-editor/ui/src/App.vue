@@ -1,14 +1,17 @@
 <script setup lang="ts">
+import MoonlightSurface from 'moonlight-ui/MoonlightSurface.vue';
+import MoonlightButton from 'moonlight-ui/MoonlightButton.vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { Focus, Database, ArrowDown, ArrowUp, Grid2X2, Eye, Lightbulb } from '@lucide/vue';
-import type { DistancePick, SchemaDefinition } from './schema';
-import { latestRequest } from './LatestRequest';
-import { parseRegistryOptions } from './registryOptions';
+import { Focus, Database, ArrowDown, ArrowUp, Grid2X2, Eye, Lightbulb, X } from '@lucide/vue';
+import type { DistancePick, SchemaDefinition } from 'moonlight-ui/schema';
+import { latestRequest } from 'moonlight-ui/LatestRequest';
+import { parseRegistryOptions } from 'moonlight-ui/registryOptions';
 import { pickedDistance, projectedCircle } from './distance';
 import { useSelene, requestEditorOperation, type ClientNetworkPayload, type Coordinate } from './selene';
 import FileModal from './FileModal.vue';
-import SchemaForm from './SchemaForm.vue';
-import GizmoVisual from './GizmoVisual.vue';
+import SchemaForm from 'moonlight-ui/SchemaForm.vue';
+import MoonlightWorldMarker from 'moonlight-ui/MoonlightWorldMarker.vue';
+import MoonlightWorldPreview from 'moonlight-ui/MoonlightWorldPreview.vue';
 import GoToMenu from './GoToMenu.vue';
 import ContextMenu from './ContextMenu.vue';
 
@@ -1259,50 +1262,67 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-if="enabled && !visible && hoveredCoordinate" class="hovered-coordinate" aria-label="Hovered coordinates">
+  <MoonlightSurface
+    as="div"
+    variant="status"
+    v-if="enabled && !visible && hoveredCoordinate"
+    class="hovered-coordinate ml-status-start"
+    aria-label="Hovered coordinates"
+  >
     X: {{ hoveredCoordinate.x }} · Y: {{ hoveredCoordinate.y }} · Z: {{ hoveredCoordinate.z }}
-  </div>
+  </MoonlightSurface>
   <ContextMenu
     v-if="enabled && !visible && !inlineForm && !pickingDistance && !pickingCoordinateField && !pickingRegistry"
   />
-  <nav v-if="enabled && !visible && !pickingDistance" class="actions" aria-label="Editor actions">
-    <button
+  <MoonlightSurface
+    as="nav"
+    variant="status"
+    v-if="enabled && !visible && !pickingDistance"
+    class="actions ml-toolbar-end ml-row"
+    aria-label="Editor actions"
+  >
+    <MoonlightButton
       type="button"
       title="Camera up 1 level (Shift: 3 levels)"
       aria-label="Camera up"
       @click="moveCameraLevel(1, $event)"
     >
       <ArrowUp :size="16" aria-hidden="true" />
-    </button>
-    <button
+    </MoonlightButton>
+    <MoonlightButton
       type="button"
       title="Camera down 1 level (Shift: 3 levels)"
       aria-label="Camera down"
       @click="moveCameraLevel(-1, $event)"
     >
       <ArrowDown :size="16" aria-hidden="true" />
-    </button>
-    <button
+    </MoonlightButton>
+    <MoonlightButton
       type="button"
       title="Focus Character"
       @click="selene.network.sendToServer('moonlight-editor:focus-character')"
     >
       <Focus :size="16" aria-hidden="true" />
       Focus Character
-    </button>
+    </MoonlightButton>
     <GoToMenu />
-    <button
+    <MoonlightButton
       type="button"
       title="Show tile grid on the current z layer"
       :aria-pressed="showTileGrid"
       @click="toggleTileGrid"
     >
       <Grid2X2 :size="16" aria-hidden="true" />
-    </button>
-    <button type="button" title="Enable or disable scene lighting" :aria-pressed="showLights" @click="toggleLights">
+    </MoonlightButton>
+    <MoonlightButton
+      type="button"
+      title="Enable or disable scene lighting"
+      :aria-pressed="showLights"
+      @click="toggleLights"
+    >
       <Lightbulb :size="16" aria-hidden="true" />
-    </button>
-    <button
+    </MoonlightButton>
+    <MoonlightButton
       type="button"
       title="Show editor gizmos on the current z layer"
       :aria-pressed="showGizmos"
@@ -1310,53 +1330,57 @@ onBeforeUnmount(() => {
     >
       <Eye :size="16" aria-hidden="true" />
       Toggle Gizmos
-    </button>
-    <button type="button" @click="setProjectVisible(true)">
+    </MoonlightButton>
+    <MoonlightButton type="button" @click="setProjectVisible(true)">
       <Database :size="16" aria-hidden="true" />
       Registry Editor
-    </button>
-  </nav>
-  <div v-if="enabled && showGizmos && !pickerActive" class="gizmos">
-    <button
+    </MoonlightButton>
+  </MoonlightSurface>
+  <div v-if="enabled && showGizmos && !pickerActive" class="gizmos ml-world-layer">
+    <MoonlightWorldMarker
       v-for="gizmo in projectedGizmos"
       :key="gizmo.id"
       class="gizmo"
-      :class="{
-        interactive: (gizmo.path || gizmo.lookup) && !pickingDistance && !dragging,
-        'has-range': gizmo.range !== undefined && !pickingDistance && !dragging,
-      }"
+      :interactive="!!(gizmo.path || gizmo.lookup || gizmo.range !== undefined) && !pickingDistance && !dragging"
       :style="{ left: `${gizmo.screen.x}px`, top: `${gizmo.screen.y}px`, '--gizmo-color': gizmo.color ?? '#f29d49' }"
-      :title="gizmo.label"
+      :label="gizmo.label"
+      :visual="gizmo.visual"
       :disabled="(!gizmo.path && !gizmo.lookup && gizmo.range === undefined) || !!pickingDistance"
       @pointerenter="hoveredGizmoId = gizmo.id"
       @pointerleave="hoveredGizmoId = null"
       @focus="focusedGizmoId = gizmo.id"
       @blur="focusedGizmoId = null"
       @click.stop="clickGizmo(gizmo)"
-    >
-      <span class="gizmo-marker">
-        <GizmoVisual v-if="gizmo.visual" :identifier="gizmo.visual" />
-      </span>
-      <span class="gizmo-label">{{ gizmo.label }}</span>
-    </button>
+    />
   </div>
-  <svg v-if="gizmoRangeCircle" class="distance-preview gizmo-range-preview" aria-hidden="true">
-    <polygon :points="gizmoRangeCircle.points" />
-    <circle :cx="gizmoRangeCircle.center.x" :cy="gizmoRangeCircle.center.y" r="4" />
-  </svg>
-  <svg v-if="enabled && distanceCircle" class="distance-preview" aria-hidden="true">
-    <polygon :points="distanceCircle.points" />
-    <circle :cx="distanceCircle.center.x" :cy="distanceCircle.center.y" r="4" />
-  </svg>
-  <div v-if="enabled && pickingDistance" class="distance-status" role="status">
+  <MoonlightWorldPreview
+    v-if="gizmoRangeCircle"
+    :points="gizmoRangeCircle.points"
+    :center="gizmoRangeCircle.center"
+    layer="world"
+  />
+  <MoonlightWorldPreview
+    v-if="enabled && distanceCircle"
+    :points="distanceCircle.points"
+    :center="distanceCircle.center"
+  />
+  <MoonlightSurface
+    as="div"
+    variant="status"
+    v-if="enabled && pickingDistance"
+    class="distance-status ml-status-top ml-row"
+    role="status"
+  >
     <strong>{{ pickingDistance.field }}: {{ pickingDistance.distance }} tiles</strong>
-    <button type="button" @click="finishCoordinatePicker()">Cancel</button>
-  </div>
-  <section
+    <MoonlightButton type="button" @click="finishCoordinatePicker()">Cancel</MoonlightButton>
+  </MoonlightSurface>
+  <MoonlightSurface
+    as="section"
+    variant="panel"
     v-if="inlineForm"
     v-show="!inlinePicking && inlineForm.coordinate.z === cameraCoordinate.z"
     :key="inlineForm.id"
-    class="inline-modal"
+    class="inline-modal moonlight-panel ml-floating"
     :style="inlinePosition"
     role="dialog"
     :aria-label="inlineForm.title"
@@ -1365,10 +1389,13 @@ onBeforeUnmount(() => {
     @click.stop
   >
     <header>
-      <strong>{{ inlineForm.title }}</strong
-      ><button class="inline-close" type="button" aria-label="Close" @click="closeInlineForm">×</button>
+      <strong>{{ inlineForm.title }}</strong>
+      <MoonlightButton variant="ghost" size="icon" type="button" aria-label="Close" @click="closeInlineForm">
+        <X :size="18" aria-hidden="true" />
+      </MoonlightButton>
     </header>
     <SchemaForm
+      class="moonlight-form-scroll"
       :schema="inlineForm.schema"
       :field-labels="inlineForm.fieldLabels"
       :contents="inlineForm.contents"
@@ -1380,11 +1407,11 @@ onBeforeUnmount(() => {
     />
     <footer>
       <span role="status">{{ inlineMessage }}</span
-      ><button type="button" :disabled="inlineSaving" @click="saveInlineForm">
+      ><MoonlightButton type="button" :disabled="inlineSaving" @click="saveInlineForm">
         {{ inlineSaving ? 'Applying…' : 'Apply' }}
-      </button>
+      </MoonlightButton>
     </footer>
-  </section>
+  </MoonlightSurface>
   <FileModal
     v-if="enabled"
     v-show="visible"
@@ -1424,264 +1451,3 @@ onBeforeUnmount(() => {
     @close="setProjectVisible(false)"
   />
 </template>
-
-<style scoped>
-.inline-modal {
-  position: fixed;
-  z-index: 1000;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  overflow: hidden;
-  box-sizing: border-box;
-  color: #e4e4e7;
-  background: #18181b;
-  border: 1px solid #3f3f46;
-  border-radius: 8px;
-  box-shadow: 0 18px 60px #000b;
-  pointer-events: auto;
-  font: inherit;
-}
-.inline-modal header,
-.inline-modal footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 18px;
-}
-.inline-modal header {
-  border-bottom: 1px solid rgba(212, 212, 216, 0.14);
-}
-.inline-modal footer {
-  border-top: 1px solid rgba(212, 212, 216, 0.14);
-  color: #a1a1aa;
-}
-.inline-modal footer span {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.inline-modal :deep(.schema-form) {
-  overflow: visible;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.inline-modal > :deep(.schema-form) {
-  overflow: auto;
-}
-/* Keep suggestion lists in the scrollable form so neither nested sections nor
-   the panel edge can clip them. Applies to script and registry dropdowns. */
-.inline-modal :deep(.options) {
-  position: relative;
-  inset: auto;
-  margin-top: 4px;
-}
-.inline-modal :deep(.coordinate-input) {
-  grid-template-columns: repeat(3, minmax(0, 1fr)) auto auto;
-}
-.inline-modal :deep(.coordinate-input label),
-.inline-modal :deep(.coordinate-input input) {
-  min-width: 0;
-}
-.inline-modal button {
-  flex: none;
-  padding: 5px 13px;
-  border: 1px solid rgba(251, 113, 133, 0.42);
-  border-radius: 6px;
-  color: #ffe4e6;
-  background: rgba(251, 113, 133, 0.14);
-  font: inherit;
-  cursor: pointer;
-}
-.inline-modal .inline-close {
-  border-color: rgba(212, 212, 216, 0.22);
-  color: #d4d4d8;
-  background: #27272a;
-}
-.inline-modal button:hover:not(:disabled),
-.inline-modal button:focus-visible {
-  border-color: rgba(251, 113, 133, 0.42);
-  outline: none;
-  color: #ffe4e6;
-  background: rgba(251, 113, 133, 0.24);
-}
-.inline-modal button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-@media (max-width: 480px) {
-  .inline-modal :deep(.schema-form) {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .inline-modal :deep(.coordinate-input) {
-    grid-template-columns: minmax(0, 1fr) auto auto;
-  }
-  .inline-modal :deep(.coordinate-input label) {
-    grid-column: 1;
-  }
-  .inline-modal :deep(.pick-coordinate),
-  .inline-modal :deep(.view-coordinate) {
-    grid-row: 1 / 4;
-  }
-  .inline-modal :deep(.pick-coordinate) {
-    grid-column: 2;
-  }
-  .inline-modal :deep(.view-coordinate) {
-    grid-column: 3;
-  }
-}
-
-:global(:host) {
-  color: #e4e4e7;
-  font:
-    13px/1.4 Inter,
-    system-ui,
-    sans-serif;
-}
-.gizmos {
-  position: fixed;
-  /* Keep world gizmos below moonlight-admin's menu layer (800). */
-  z-index: 700;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-.hovered-coordinate {
-  position: fixed;
-  z-index: 950;
-  top: 12px;
-  left: 12px;
-  padding: 6px 10px;
-  border: 1px solid rgba(212, 212, 216, 0.2);
-  border-radius: 8px;
-  color: #e4e4e7;
-  background: rgba(24, 24, 27, 0.9);
-  font-variant-numeric: tabular-nums;
-  pointer-events: none;
-}
-.actions button[aria-pressed='false'] {
-  background: #3f3f46;
-  border-color: #f29d49;
-}
-.distance-preview {
-  position: fixed;
-  z-index: 910;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-.gizmo-range-preview {
-  z-index: 699;
-}
-.distance-preview polygon {
-  fill: #fb718530;
-  stroke: #fb7185;
-  stroke-width: 2;
-}
-.distance-preview circle {
-  fill: #fff;
-  stroke: #fb7185;
-  stroke-width: 2;
-}
-.distance-status {
-  position: fixed;
-  z-index: 950;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  border: 1px solid #fb7185;
-  border-radius: 8px;
-  color: #fafafa;
-  background: #18181bef;
-}
-.distance-status button {
-  padding: 5px 10px;
-  border: 1px solid #3f3f46;
-  border-radius: 6px;
-  color: #fafafa;
-  background: #27272a;
-  cursor: pointer;
-}
-.actions {
-  display: flex;
-  gap: 5px;
-  position: fixed;
-  z-index: 950;
-  top: 12px;
-  right: 12px;
-  padding: 5px;
-  border: 1px solid rgba(212, 212, 216, 0.2);
-  border-radius: 8px;
-  background: rgba(24, 24, 27, 0.9);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 8px 24px #0008;
-  pointer-events: auto;
-}
-.actions button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 13px;
-  border: 1px solid rgba(251, 113, 133, 0.42);
-  border-radius: 6px;
-  color: #ffe4e6;
-  background: rgba(251, 113, 133, 0.14);
-  font: inherit;
-  cursor: pointer;
-  user-select: none;
-}
-.actions button:hover,
-.actions button:focus-visible {
-  outline: none;
-  background: rgba(251, 113, 133, 0.24);
-}
-.gizmo {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 6px;
-  /* Center the 26px marker after the button's 6px left padding. */
-  transform: translate(-19px, -50%);
-  border: 0;
-  border-radius: 10px;
-  color: #fafafa;
-  background: rgba(24, 24, 27, 0.9);
-  font: inherit;
-  white-space: nowrap;
-  pointer-events: none;
-}
-.gizmo.has-range {
-  pointer-events: auto;
-}
-.gizmo.interactive {
-  cursor: pointer;
-  pointer-events: auto;
-}
-.gizmo-marker {
-  position: relative;
-  box-sizing: border-box;
-  width: 26px;
-  height: 26px;
-  flex: none;
-  border: 2px solid #fff;
-  border-radius: 50%;
-  background: var(--gizmo-color);
-  box-shadow: 0 0 0 2px #0008;
-  overflow: hidden;
-}
-.gizmo-label {
-  display: none;
-  max-width: 180px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  user-select: none;
-}
-.gizmo:hover .gizmo-label,
-.gizmo:focus-visible .gizmo-label {
-  display: block;
-}
-</style>

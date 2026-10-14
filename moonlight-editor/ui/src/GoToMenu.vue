@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import MoonlightSurface from 'moonlight-ui/MoonlightSurface.vue';
+import MoonlightButton from 'moonlight-ui/MoonlightButton.vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { MapPin } from '@lucide/vue';
-import GizmoVisual from './GizmoVisual.vue';
+import GizmoVisual from 'moonlight-ui/GizmoVisual.vue';
 import { useSelene, type Coordinate } from './selene';
 interface GoToTarget {
   name: string;
@@ -97,134 +99,53 @@ onBeforeUnmount(() => {
 });
 </script>
 <template>
-  <div ref="root" class="go-to-menu">
-    <button class="go-to-toggle" type="button" :aria-expanded="open" aria-controls="go-to-dropdown" @click="toggle">
+  <div ref="root" class="go-to-menu ml-relative">
+    <MoonlightButton
+      class="go-to-toggle"
+      type="button"
+      :aria-expanded="open"
+      aria-controls="go-to-dropdown"
+      @click="toggle"
+    >
       <MapPin :size="16" aria-hidden="true" /> Go To
-    </button>
-    <div v-if="open" id="go-to-dropdown" class="go-to-dropdown">
+    </MoonlightButton>
+    <MoonlightSurface
+      as="div"
+      variant="popup"
+      v-if="open"
+      id="go-to-dropdown"
+      class="go-to-dropdown moonlight-popup ml-popover-end"
+    >
       <input
+        class="moonlight-input"
         ref="input"
         v-model="search"
         type="search"
         placeholder="Search destinations…"
         aria-label="Search destinations"
       />
-      <div class="go-to-results">
+      <div class="go-to-results ml-scroll">
         <p v-if="loading" role="status">Loading targets…</p>
         <p v-else-if="!matches.length" role="status">No destinations found.</p>
-        <button v-for="(target, index) in matches" :key="index" type="button" class="go-to-target" @click="goTo(target)">
-          <span v-if="target.visual" class="go-to-visual"><GizmoVisual :identifier="target.visual" /></span>
-          <span class="go-to-text"
+        <MoonlightButton
+          v-for="(target, index) in matches"
+          :key="index"
+          type="button"
+          class="go-to-target moonlight-item"
+          @click="goTo(target)"
+        >
+          <span v-if="target.visual" class="go-to-visual ml-visual-small"
+            ><GizmoVisual :identifier="target.visual"
+          /></span>
+          <span class="go-to-text moonlight-description"
             ><strong>{{ target.name }}</strong
             ><small
               >{{ target.type }} · {{ target.coordinate.x }}, {{ target.coordinate.y }},
               {{ target.coordinate.z }}</small
             ></span
           >
-        </button>
+        </MoonlightButton>
       </div>
-    </div>
+    </MoonlightSurface>
   </div>
 </template>
-<style scoped>
-.go-to-menu {
-  position: relative;
-  font: inherit;
-}
-.go-to-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 13px;
-  border: 1px solid rgba(251, 113, 133, 0.42);
-  border-radius: 6px;
-  color: #ffe4e6;
-  background: rgba(251, 113, 133, 0.14);
-  font: inherit;
-  cursor: pointer;
-  user-select: none;
-}
-.go-to-toggle:hover,
-.go-to-toggle:focus-visible {
-  outline: none;
-  background: rgba(251, 113, 133, 0.24);
-}
-
-.go-to-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  box-sizing: border-box;
-  width: min(340px, calc(100vw - 24px));
-  padding: 4px;
-  border: 1px solid #3f3f46;
-  border-radius: 7px;
-  background: #18181b;
-  color: #e4e4e7;
-  box-shadow: 0 12px 30px #000a;
-}
-input {
-  box-sizing: border-box;
-  width: 100%;
-  padding: 6px 8px;
-  border: 1px solid rgba(212, 212, 216, 0.22);
-  border-radius: 6px;
-  outline: none;
-  color: #fafafa;
-  background: #09090b;
-  font: inherit;
-}
-input:focus {
-  border-color: #fb7185;
-  box-shadow: 0 0 0 3px rgba(251, 113, 133, 0.14);
-}
-.go-to-results {
-  max-height: min(270px, 60vh);
-  overflow-y: auto;
-  margin-top: 4px;
-}
-.go-to-target {
-  font: inherit;
-}
-.go-to-visual {
-  position: relative;
-  flex: 0 0 28px;
-  width: 28px;
-  height: 28px;
-}
-.go-to-target {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  width: 100%;
-  padding: 5px;
-  border: 0;
-  border-radius: 5px;
-  color: #e4e4e7;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-.go-to-target:hover,
-.go-to-target:focus-visible {
-  background: rgba(251, 113, 133, 0.14);
-}
-.go-to-text {
-  min-width: 0;
-  display: grid;
-}
-.go-to-text strong,
-.go-to-text small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.go-to-text small {
-  color: #71717a;
-  font-size: 10px;
-}
-.go-to-results p {
-  margin: 8px;
-  color: #71717a;
-}
-</style>

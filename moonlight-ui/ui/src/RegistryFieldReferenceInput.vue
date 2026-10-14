@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { requestEditorOperation, useSelene } from './selene';
+import { useSelene } from './selene';
+import { requestEditorOperation } from './resourceOperations';
 import SelectInput from './SelectInput.vue';
 
 const props = defineProps<{

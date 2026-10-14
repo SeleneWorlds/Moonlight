@@ -31,7 +31,14 @@ function update(event: Event): void {
 
 <template>
   <div class="json-input">
-    <textarea :readonly="readonly" :value="draft" :aria-invalid="invalid" rows="4" @input="update" />
+    <textarea
+      class="moonlight-input"
+      :readonly="readonly"
+      :value="draft"
+      :aria-invalid="invalid"
+      rows="4"
+      @input="update"
+    />
     <small v-if="invalid" role="status">Enter a valid JSON value.</small>
   </div>
 </template>
@@ -40,15 +47,10 @@ function update(event: Event): void {
 textarea {
   box-sizing: border-box;
   width: 100%;
-  padding: 8px;
-  border: 1px solid #3f3f46;
-  border-radius: 6px;
-  color: #fafafa;
-  background: #18181b;
   font-family: monospace;
   resize: vertical;
 }
 small {
-  color: #fda4af;
+  color: var(--moonlight-error, #fda4af);
 }
 </style>

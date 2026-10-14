@@ -1,5 +1,12 @@
 export type AreaShape =
-  | { type: 'rectangle'; x: number; y: number; z: number; width: number; height: number }
+  | {
+      type: 'rectangle';
+      x: number;
+      y: number;
+      z: number;
+      width: number;
+      height: number;
+    }
   | { type: 'circle'; x: number; y: number; z: number; radius: number };
 export interface Area {
   include: AreaShape[];
@@ -44,7 +51,10 @@ export function parseArea(value: unknown): Area {
 export type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 'e' | 's' | 'w';
 export function resizeShape(shape: AreaShape, handle: ResizeHandle, x: number, y: number): AreaShape {
   if (shape.type === 'circle') {
-    return { ...shape, radius: Math.round(Math.hypot(x - shape.x, y - shape.y)) };
+    return {
+      ...shape,
+      radius: Math.round(Math.hypot(x - shape.x, y - shape.y)),
+    };
   }
   const oppositeX = handle.includes('w') ? shape.x + shape.width - 1 : shape.x;
   const oppositeY = handle.includes('n') ? shape.y + shape.height - 1 : shape.y;

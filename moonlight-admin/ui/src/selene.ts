@@ -1,5 +1,5 @@
-// TODO This should later be moved into a selene-ui package that can be used by other bundles too
 import { inject, type InjectionKey } from 'vue';
+import { seleneInjectionSymbol } from 'moonlight-ui/injection';
 
 export type ClientNetworkPayload = Record<string, unknown>;
 export interface Coordinate {
@@ -65,7 +65,7 @@ export interface SeleneUiApi {
   };
 }
 
-export const seleneKey: InjectionKey<SeleneUiApi> = Symbol('selene-api');
+export const seleneKey: InjectionKey<SeleneUiApi> = seleneInjectionSymbol;
 
 export const useSelene = (): SeleneUiApi => {
   const selene = inject(seleneKey);

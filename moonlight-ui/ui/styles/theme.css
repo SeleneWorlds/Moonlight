@@ -1,0 +1,18 @@
+:host,
+.moonlight-ui {
+  --moonlight-background: #09090b;
+  --moonlight-surface: #18181b;
+  --moonlight-surface-raised: #27272a;
+  --moonlight-border: #3f3f46;
+  --moonlight-text-subtle: #71717a;
+  --moonlight-text-muted: #a1a1aa;
+  --moonlight-text: #e4e4e7;
+  --moonlight-text-strong: #fafafa;
+  --moonlight-accent: #fb7185;
+  --moonlight-accent-soft: color-mix(in srgb, var(--moonlight-accent) 14%, transparent);
+  --moonlight-danger: #f87171;
+  --moonlight-success: #4ade80;
+  --moonlight-info: #60a5fa;
+  --moonlight-warning: #fbbf24;
+  --moonlight-error: #fda4af;
+}

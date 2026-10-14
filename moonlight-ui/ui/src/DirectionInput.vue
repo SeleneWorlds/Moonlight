@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MoonlightButton from './MoonlightButton.vue';
 import { computed, onMounted, onUnmounted, ref, useId } from 'vue';
 import {
   ArrowUp,
@@ -21,7 +22,7 @@ const directions = ref<Array<{ name: string; angle: number; vector: Coordinate }
 const ready = ref(false);
 const disposers: Array<() => void> = [];
 const root = ref<HTMLElement>();
-const trigger = ref<HTMLButtonElement>();
+const trigger = ref<InstanceType<typeof MoonlightButton>>();
 const open = ref(false);
 const popupId = useId();
 const selected = computed(() => directions.value.find((direction) => direction.name === props.value));
@@ -96,6 +97,7 @@ onUnmounted(() => {
        document listeners see the editor host and close the popup before click. -->
   <div ref="root" class="direction-input" @pointerdown.stop @focusout="closeOnBlur" @keydown.esc.stop.prevent="escape">
     <select
+      class="moonlight-input"
       v-if="!usePad"
       :value="value ?? ''"
       :disabled="readonly"
@@ -109,7 +111,7 @@ onUnmounted(() => {
       </option>
     </select>
     <template v-else>
-      <button
+      <MoonlightButton
         ref="trigger"
         type="button"
         class="trigger"
@@ -121,11 +123,17 @@ onUnmounted(() => {
         <component :is="selectedArrow" v-if="selected" :size="18" aria-hidden="true" />
         <span>{{ selected?.name ?? (value ? `Unknown direction: ${value}` : 'Select direction…') }}</span>
         <ChevronDown :size="16" aria-hidden="true" />
-      </button>
-      <div v-if="open" :id="popupId" class="popup" role="group" aria-label="Select direction">
+      </MoonlightButton>
+      <div
+        v-if="open"
+        :id="popupId"
+        class="popup moonlight-popup ml-popover"
+        role="group"
+        aria-label="Select direction"
+      >
         <div class="pad">
           <span class="center" aria-hidden="true">•</span>
-          <button
+          <MoonlightButton
             v-for="(direction, index) in directions"
             :key="direction.name"
             type="button"
@@ -139,7 +147,7 @@ onUnmounted(() => {
           >
             <component :is="arrows[slots[index]!]" :size="22" aria-hidden="true" />
             <span>{{ direction.name }}</span>
-          </button>
+          </MoonlightButton>
         </div>
       </div>
     </template>
@@ -154,15 +162,7 @@ onUnmounted(() => {
   position: relative;
   min-width: 0;
 }
-button,
-select {
-  padding: 8px;
-  border: 1px solid #3f3f46;
-  border-radius: 6px;
-  background: #18181b;
-  color: #e4e4e7;
-  cursor: pointer;
-}
+
 .trigger {
   display: flex;
   align-items: center;
@@ -183,19 +183,7 @@ select {
 select {
   width: 100%;
 }
-.popup {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 20;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 8px;
-  border: 1px solid #3f3f46;
-  border-radius: 8px;
-  background: #18181b;
-  box-shadow: 0 12px 30px #000a;
-}
+
 .pad {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -206,7 +194,7 @@ select {
   grid-area: 2 / 2;
   align-self: center;
   justify-self: center;
-  color: #71717a;
+  color: var(--moonlight-text-subtle, #71717a);
   font-size: 24px;
 }
 .direction {
@@ -225,26 +213,20 @@ select {
   white-space: nowrap;
   font-size: 10px;
 }
-button:hover {
-  background: #27272a;
-}
+
 button[aria-pressed='true'] {
-  border-color: #fb7185;
+  border-color: var(--moonlight-accent, #fb7185);
   background: rgba(251, 113, 133, 0.14);
 }
 button:focus-visible,
 select:focus-visible {
-  outline: 2px solid #fb7185;
+  outline: 2px solid var(--moonlight-accent, #fb7185);
   outline-offset: 2px;
 }
-button:disabled,
-select:disabled {
-  cursor: default;
-  opacity: 0.6;
-}
+
 small {
   display: block;
   margin-top: 6px;
-  color: #a1a1aa;
+  color: var(--moonlight-text-muted, #a1a1aa);
 }
 </style>

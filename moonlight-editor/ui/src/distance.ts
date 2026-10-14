@@ -1,4 +1,4 @@
-import type { DistancePick } from './schema';
+import type { DistancePick } from 'moonlight-ui/schema';
 import type { Coordinate } from './selene';
 
 export function pickedDistance(pick: DistancePick, coordinate: Coordinate): number {

@@ -73,5 +73,8 @@ export function resolveSchemaField(definition: SchemaDefinition, contents: Recor
     typeof selected === 'string' && Object.prototype.hasOwnProperty.call(definition.variants ?? {}, selected)
       ? definition.variants![selected]!
       : 'any';
-  return { optional: definition.optional, ...(typeof variant === 'string' ? { type: variant } : variant) };
+  return {
+    optional: definition.optional,
+    ...(typeof variant === 'string' ? { type: variant } : variant),
+  };
 }

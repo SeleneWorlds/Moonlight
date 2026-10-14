@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MoonlightButton from './MoonlightButton.vue';
 import { computed, reactive, ref, watch } from 'vue';
 import { Trash2 } from '@lucide/vue';
 import SchemaForm from './SchemaForm.vue';
@@ -68,7 +69,10 @@ function save(next: Obj): void {
   }
 }
 function updatePool(index: number, pool: Obj): void {
-  save({ ...value.value, pools: pools.value.map((p, i) => (i === index ? pool : p)) });
+  save({
+    ...value.value,
+    pools: pools.value.map((p, i) => (i === index ? pool : p)),
+  });
 }
 function updateEntry(contents: string): void {
   if (!selection.value) {
@@ -76,13 +80,22 @@ function updateEntry(contents: string): void {
   }
   const { pool, entry } = selection.value;
   const p = pools.value[pool]!;
-  updatePool(pool, { ...p, entries: entries(p).map((e, i) => (i === entry ? JSON.parse(contents) : e)) });
+  updatePool(pool, {
+    ...p,
+    entries: entries(p).map((e, i) => (i === entry ? JSON.parse(contents) : e)),
+  });
 }
 function addEntry(pool: number): void {
   const p = pools.value[pool]!;
   updatePool(pool, {
     ...p,
-    entries: [...entries(p), { type: defaultSchemaValue(entrySchema.value.type ?? 'string'), weight: 1 }],
+    entries: [
+      ...entries(p),
+      {
+        type: defaultSchemaValue(entrySchema.value.type ?? 'string'),
+        weight: 1,
+      },
+    ],
   });
   selection.value = { pool, entry: entries(p).length };
 }
@@ -197,7 +210,9 @@ function settings(schema: Record<string, SchemaDefinition>, exclude: string): Re
   <div class="rolls-editor">
     <div class="settings">
       <span>{{ count(value) }}</span>
-      <button type="button" aria-label="Roll conditions and settings" @click="settingsTarget = 'rolls'">•••</button>
+      <MoonlightButton type="button" aria-label="Roll conditions and settings" @click="settingsTarget = 'rolls'"
+        >•••</MoonlightButton
+      >
     </div>
     <details v-for="(pool, index) in pools" :key="index" class="pool" :open="index === 0">
       <summary>
@@ -206,14 +221,18 @@ function settings(schema: Record<string, SchemaDefinition>, exclude: string): Re
       </summary>
       <div class="settings">
         <span>{{ count(pool) }}</span>
-        <button type="button" :aria-label="`${poolName(pool, index)} settings`" @click="settingsTarget = index">
+        <MoonlightButton
+          type="button"
+          :aria-label="`${poolName(pool, index)} settings`"
+          @click="settingsTarget = index"
+        >
           •••
-        </button>
+        </MoonlightButton>
       </div>
       <div class="row headings">
         <span>Entry</span><span>Weight</span><span title="Chance before conditions are evaluated">Chance</span><span />
       </div>
-      <button
+      <MoonlightButton
         v-for="{ entry, index: entryIndex } in sortedEntries(pool)"
         :key="entryIndex"
         type="button"
@@ -227,17 +246,19 @@ function settings(schema: Record<string, SchemaDefinition>, exclude: string): Re
         ><span>{{ weight(entry) }}</span
         ><span>{{ chance(pool, entry) }}</span
         ><span>›</span>
-      </button>
-      <button v-if="!readonly" type="button" class="add" @click="addEntry(index)">＋ Add entry</button>
+      </MoonlightButton>
+      <MoonlightButton v-if="!readonly" type="button" class="add" @click="addEntry(index)"
+        >＋ Add entry</MoonlightButton
+      >
     </details>
-    <button
+    <MoonlightButton
       v-if="!readonly"
       type="button"
       class="add"
       @click="save({ ...value, pools: [...pools, { rolls: 1, entries: [] }] })"
     >
       ＋ Add pool
-    </button>
+    </MoonlightButton>
     <dialog
       ref="modal"
       class="rolls-modal"
@@ -253,7 +274,14 @@ function settings(schema: Record<string, SchemaDefinition>, exclude: string): Re
           <strong v-else-if="typeof settingsTarget === 'number' && pools[settingsTarget]">
             {{ poolName(pools[settingsTarget]!, settingsTarget) }} settings
           </strong>
-          <button type="button" class="close-modal" aria-label="Close editor" @click="closeModal">✕</button>
+          <MoonlightButton
+            variant="ghost"
+            type="button"
+            class="close-modal"
+            aria-label="Close editor"
+            @click="closeModal"
+            >✕</MoonlightButton
+          >
         </header>
         <section v-if="selected && selection">
           <SchemaForm
@@ -270,9 +298,9 @@ function settings(schema: Record<string, SchemaDefinition>, exclude: string): Re
             @pick-distance="pickDistance({ ...$event, field: path($event.field) })"
           />
           <footer v-if="!readonly" class="delete-actions">
-            <button type="button" aria-label="Delete entry" title="Delete entry" @click="removeEntry">
+            <MoonlightButton type="button" aria-label="Delete entry" title="Delete entry" @click="removeEntry">
               <Trash2 :size="18" aria-hidden="true" />
-            </button>
+            </MoonlightButton>
           </footer>
         </section>
 
@@ -299,20 +327,28 @@ function settings(schema: Record<string, SchemaDefinition>, exclude: string): Re
             @update-contents="updatePool(settingsTarget, JSON.parse($event))"
             @search-registry="(registry, query, lookup) => emit('searchRegistry', registry, query, lookup)"
             @pick-coordinate="pickCoordinate(`pools.${settingsTarget}.${$event}`)"
-            @pick-distance="pickDistance({ ...$event, field: `pools.${settingsTarget}.${$event.field}` })"
+            @pick-distance="
+              pickDistance({
+                ...$event,
+                field: `pools.${settingsTarget}.${$event.field}`,
+              })
+            "
           />
           <footer v-if="!readonly" class="delete-actions">
-            <button
+            <MoonlightButton
               type="button"
               aria-label="Delete pool"
               title="Delete pool"
               @click="
-                save({ ...value, pools: pools.filter((_, i) => i !== settingsTarget) });
+                save({
+                  ...value,
+                  pools: pools.filter((_, i) => i !== settingsTarget),
+                });
                 closeModal();
               "
             >
               <Trash2 :size="18" aria-hidden="true" />
-            </button>
+            </MoonlightButton>
           </footer>
         </section>
       </div>
@@ -321,7 +357,7 @@ function settings(schema: Record<string, SchemaDefinition>, exclude: string): Re
 </template>
 <style scoped>
 .rolls-editor {
-  border: 1px solid #3f3f46;
+  border: 1px solid var(--moonlight-border, #3f3f46);
   border-radius: 10px;
   padding: 14px;
   min-width: 0;
@@ -338,24 +374,16 @@ header small,
 }
 small {
   border-radius: 20px;
-  background: #27272a;
+  background: var(--moonlight-surface-raised, #27272a);
   padding: 3px 8px;
   color: #d4d4d8;
 }
 button {
-  color: #e4e4e7;
-  background: transparent;
-  border: 1px solid #3f3f46;
-  border-radius: 8px;
   padding: 7px 10px;
-  cursor: pointer;
-  font: inherit;
 }
-button:hover {
-  background: #27272a;
-}
+
 .pool {
-  border-top: 1px solid #27272a;
+  border-top: 1px solid var(--moonlight-surface-raised, #27272a);
   margin-top: 12px;
   padding-top: 12px;
 }
@@ -374,7 +402,7 @@ summary {
   align-items: center;
   gap: 10px;
   justify-content: flex-end;
-  color: #a1a1aa;
+  color: var(--moonlight-text-muted, #a1a1aa);
   font-size: 12px;
   list-style: none;
 }
@@ -398,7 +426,7 @@ summary::-webkit-details-marker {
   text-align: right;
 }
 .headings {
-  color: #a1a1aa;
+  color: var(--moonlight-text-muted, #a1a1aa);
   font-size: 11px;
   text-transform: uppercase;
 }
@@ -440,10 +468,10 @@ summary::-webkit-details-marker {
   max-height: calc(100vh - 48px);
   overflow: auto;
   padding: 20px;
-  border: 1px solid #3f3f46;
+  border: 1px solid var(--moonlight-border, #3f3f46);
   border-radius: 12px;
-  color: #e4e4e7;
-  background: #09090b;
+  color: var(--moonlight-text, #e4e4e7);
+  background: var(--moonlight-background, #09090b);
   box-shadow: 0 20px 80px #000a;
 }
 .rolls-modal::backdrop {

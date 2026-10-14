@@ -1,16 +1,21 @@
 <script setup lang="ts">
 import { onUnmounted, ref, watch } from 'vue';
-import { useSelene, type VisualDefinition, type VisualFrameDefinition } from './selene';
+import { inject, type InjectionKey } from 'vue';
+import { seleneInjectionSymbol } from './injection';
+import type { SeleneUiApi, VisualDefinition, VisualFrameDefinition } from './selene';
 
-interface Layer {
+interface RenderLayer {
   texture: string;
   flipX: boolean;
   flipY: boolean;
 }
-
 const props = defineProps<{ identifier: string }>();
-const selene = useSelene();
-const layers = ref<Layer[]>([]);
+const selene = inject(seleneInjectionSymbol as InjectionKey<Pick<SeleneUiApi, 'visuals' | 'resolveAsset'>>);
+if (!selene) {
+  throw new Error('Selene API was not provided.');
+}
+const visualApi = selene;
+const layers = ref<RenderLayer[]>([]);
 let generation = 0;
 
 function firstFrame(definition: VisualDefinition): VisualFrameDefinition | undefined {
@@ -18,14 +23,17 @@ function firstFrame(definition: VisualDefinition): VisualFrameDefinition | undef
   if (frame) {
     return typeof frame === 'string' ? { ...definition, texture: frame } : { ...definition, ...frame };
   }
-  if (definition.textures?.[0]) {
-    return { ...definition, texture: definition.textures[0] };
+  const texture = definition.textures?.[0];
+  if (texture) {
+    return { ...definition, texture };
   }
   if (definition.texture) {
     return definition;
   }
   const animations = definition.animations ?? {};
-  const animation = animations['stationary/west'] ?? animations['idle/west'] ?? Object.values(animations)[0];
+  const preferred = ['stationary/west', 'idle/west'].map((name) => animations[name]).find(Boolean);
+  const west = Object.entries(animations).find(([name]) => name.toLocaleLowerCase().endsWith('/west'))?.[1];
+  const animation = preferred ?? west ?? Object.values(animations)[0];
   const animationFrame = animation?.frames?.[0];
   if (animationFrame) {
     return typeof animationFrame === 'string'
@@ -39,13 +47,13 @@ async function load(): Promise<void> {
   const current = ++generation;
   layers.value = [];
   try {
-    const definition = await selene.visuals.getDefinition(props.identifier);
+    const definition = await visualApi.visuals.getDefinition(props.identifier);
     const resolved = await Promise.all(
-      (definition.layers?.length ? definition.layers : [definition]).map(async (part): Promise<Layer | undefined> => {
+      (definition.layers?.length ? definition.layers : [definition]).map(async (part) => {
         const frame = firstFrame(part);
         return frame?.texture
           ? {
-              texture: await selene.resolveAsset(frame.texture),
+              texture: await visualApi.resolveAsset(frame.texture),
               flipX: frame.flipX ?? false,
               flipY: frame.flipY ?? false,
             }
@@ -53,10 +61,10 @@ async function load(): Promise<void> {
       }),
     );
     if (current === generation) {
-      layers.value = resolved.filter((layer): layer is Layer => layer !== undefined);
+      layers.value = resolved.filter((layer): layer is RenderLayer => layer !== undefined);
     }
   } catch (error) {
-    console.warn('[Moonlight Editor] Could not load gizmo visual', props.identifier, error);
+    console.warn('[Moonlight UI] Could not load registry visual', props.identifier, error);
   }
 }
 
@@ -69,30 +77,37 @@ onUnmounted(() => generation++);
 </script>
 
 <template>
-  <span class="gizmo-visual" aria-hidden="true">
-    <img
+  <span class="registry-visual" aria-hidden="true"
+    ><img
       v-for="(layer, index) in layers"
       :key="`${index}:${layer.texture}`"
       :src="layer.texture"
       alt=""
-      :style="{ transform: `translate(-50%, -50%) scale(${layer.flipX ? -1 : 1}, ${layer.flipY ? -1 : 1})` }"
-    />
-  </span>
+      :style="{
+        transform: `translate(-50%, -50%) scale(${layer.flipX ? -1 : 1}, ${layer.flipY ? -1 : 1})`,
+      }"
+  /></span>
 </template>
 
 <style scoped>
-.gizmo-visual {
-  position: absolute;
-  inset: 0;
+.registry-visual {
+  position: relative;
+  display: block;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border-radius: 5px;
+  background: rgba(9, 9, 11, 0.52);
   pointer-events: none;
 }
-.gizmo-visual img {
+.registry-visual img {
   position: absolute;
   top: 50%;
   left: 50%;
   display: block;
-  max-width: 20px;
-  max-height: 20px;
+  max-width: 42px;
+  max-height: 42px;
   object-fit: contain;
   user-select: none;
 }

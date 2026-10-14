@@ -1,0 +1,597 @@
+/* All surfaces, including popups, share one appearance definition. */
+.moonlight-surface,
+.moonlight-popup {
+  border: 1px solid var(--moonlight-border, #3f3f46);
+  border-radius: 8px;
+  color: var(--moonlight-text, #e4e4e7);
+  background: var(--moonlight-surface, #18181b);
+  pointer-events: auto;
+}
+.surface-panel {
+  border-top: 4px solid var(--moonlight-accent, #fb7185);
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+  box-shadow: 0 18px 60px #000b;
+}
+.surface-card {
+  box-shadow: none;
+}
+.surface-popup,
+.moonlight-popup {
+  box-shadow: 0 12px 30px #000a;
+}
+.surface-status {
+  box-shadow: 0 8px 24px #0008;
+}
+/* Shared presentation primitives. Layout classes compose them without app-specific rules. */
+.moonlight-ui {
+  color: var(--moonlight-text);
+  font:
+    13px/1.4 Inter,
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+}
+.moonlight-ui *,
+.moonlight-ui *::before,
+.moonlight-ui *::after {
+  box-sizing: border-box;
+}
+.moonlight-ui :where(h1, h2) {
+  margin: 0;
+  color: var(--moonlight-text-strong);
+  font-size: 20px;
+}
+.moonlight-ui :where(input, textarea) {
+  user-select: text;
+}
+.moonlight-input {
+  min-width: 0;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--moonlight-border);
+  border-radius: 6px;
+  color: var(--moonlight-text-strong);
+  background: var(--moonlight-surface);
+  font: inherit;
+  outline: none;
+}
+.moonlight-input::placeholder {
+  color: var(--moonlight-text-subtle);
+}
+.moonlight-input:focus,
+.moonlight-input:focus-within {
+  border-color: var(--moonlight-accent);
+  box-shadow: 0 0 0 3px var(--moonlight-accent-soft);
+}
+.moonlight-input:disabled {
+  opacity: 0.5;
+}
+.moonlight-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--moonlight-accent);
+}
+.moonlight-field {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  gap: 6px;
+  font-size: 12px;
+}
+.moonlight-field > :where(span, label) {
+  color: var(--moonlight-text-muted);
+}
+.moonlight-field small {
+  color: var(--moonlight-text-subtle);
+  font-size: 11px;
+}
+.moonlight-field-label {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  color: var(--moonlight-text-muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+.moonlight-field-label small {
+  color: var(--moonlight-text-subtle);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+.moonlight-form {
+  display: grid;
+  align-content: start;
+  align-items: start;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  padding: 16px;
+}
+.moonlight-form > .ml-span-all {
+  grid-column: 1 / -1;
+}
+.moonlight-coordinates {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 8px;
+}
+.moonlight-coordinates label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.moonlight-coordinates label > span {
+  color: var(--moonlight-text-subtle);
+  font-size: 11px;
+}
+.moonlight-toolbar,
+.moonlight-panel > header,
+.moonlight-panel > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 16px;
+}
+.moonlight-toolbar,
+.moonlight-panel > header {
+  border-bottom: 1px solid var(--moonlight-border);
+}
+.moonlight-toolbar.moonlight-toolbar-compact {
+  gap: 8px;
+  padding: 5px 10px;
+}
+.moonlight-panel > footer {
+  border-top: 1px solid var(--moonlight-border);
+}
+.moonlight-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.moonlight-popup {
+  z-index: 20;
+  max-height: min(270px, 60vh);
+  overflow: auto;
+  padding: 4px;
+}
+.moonlight-popup > :where(p, [role='status']) {
+  margin: 8px;
+  color: var(--moonlight-text-muted);
+}
+.moonlight-item {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  justify-content: flex-start;
+  text-align: left;
+}
+.moonlight-item > .moonlight-description {
+  flex: 1;
+}
+.moonlight-description {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  text-align: left;
+}
+.moonlight-description strong {
+  font-size: 14px;
+  font-weight: 650;
+}
+.moonlight-description small {
+  color: var(--moonlight-text-muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.moonlight-list {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.moonlight-list > li {
+  min-width: 0;
+  position: relative;
+}
+.moonlight-divider {
+  height: 1px;
+  margin: 4px 8px;
+  background: var(--moonlight-border);
+}
+.moonlight-empty {
+  padding: 16px;
+  color: var(--moonlight-text-muted);
+  text-align: center;
+}
+.moonlight-status {
+  color: var(--moonlight-text-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.moonlight-status.error,
+.moonlight-error {
+  color: var(--moonlight-danger);
+}
+.moonlight-status.success:not(.error) {
+  color: var(--moonlight-success);
+}
+.moonlight-dialog {
+  width: min(640px, calc(100vw - 32px));
+  padding: 24px;
+  border: 1px solid var(--moonlight-border);
+  border-radius: 8px;
+  color: var(--moonlight-text);
+  background: var(--moonlight-surface);
+  box-shadow: 0 18px 60px #000b;
+}
+.moonlight-dialog::backdrop {
+  background: #000a;
+}
+.moonlight-dialog h2 {
+  margin-bottom: 16px;
+}
+.moonlight-code {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 14px;
+  resize: none;
+  font:
+    13px/1.5 ui-monospace,
+    monospace;
+  tab-size: 2;
+}
+.moonlight-tabs {
+  display: flex;
+  gap: 2px;
+}
+.moonlight-loading {
+  display: grid;
+  min-height: 100px;
+  place-items: center;
+}
+.moonlight-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--moonlight-border);
+  border-top-color: var(--moonlight-accent);
+  border-radius: 50%;
+  animation: moonlight-spin 0.8s linear infinite;
+}
+@keyframes moonlight-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.moonlight-badge {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--moonlight-info);
+}
+.moonlight-badge.pending {
+  background: var(--moonlight-success);
+}
+.moonlight-chevron {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-inline-start: auto;
+  transform-origin: center;
+  transition: transform 160ms ease;
+}
+[aria-expanded='true'] > .moonlight-chevron {
+  transform: rotate(180deg);
+}
+.moonlight-resource-list {
+  max-height: 45vh;
+  overflow: auto;
+  padding-left: 24px;
+  overflow-wrap: anywhere;
+}
+.moonlight-resource-list li {
+  padding: 4px 0;
+}
+/* Slot-based layouts for windows, lists, toolbars, and world overlays. */
+.ml-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.ml-row-stretch {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+.ml-self-center {
+  align-self: center;
+}
+.ml-margin-end {
+  margin-inline-end: 12px;
+}
+.ml-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  gap: 8px;
+}
+.ml-stack {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+  min-height: 0;
+}
+.ml-grid {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+}
+.ml-between {
+  justify-content: space-between;
+}
+.ml-end {
+  justify-content: flex-end;
+}
+.ml-wrap {
+  flex-wrap: wrap;
+}
+.ml-grow {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.ml-scroll {
+  overflow: auto;
+  min-width: 0;
+  min-height: 0;
+}
+.ml-pad {
+  padding: 12px;
+}
+.ml-gap {
+  gap: 8px;
+}
+.ml-relative {
+  position: relative;
+}
+.ml-span-all {
+  grid-column: 1 / -1;
+}
+.ml-border-top {
+  border-top: 1px solid var(--moonlight-border);
+}
+.ml-border-bottom {
+  border-bottom: 1px solid var(--moonlight-border);
+}
+.ml-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  border-right: 1px solid var(--moonlight-border);
+  background: var(--moonlight-background);
+}
+.ml-split {
+  display: grid;
+  grid-template-columns: minmax(230px, 28%) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+.ml-fill {
+  width: 100%;
+}
+.ml-contents {
+  display: contents;
+}
+.ml-document {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+}
+.ml-center {
+  display: grid;
+  place-items: center;
+}
+.ml-truncate {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ml-muted {
+  color: var(--moonlight-text-muted);
+}
+.ml-subtle {
+  color: var(--moonlight-text-subtle);
+  font-size: 11px;
+}
+.ml-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.ml-popover {
+  min-width: 100%;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+}
+.ml-popover-end {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  width: min(340px, calc(100vw - 24px));
+}
+.ml-context {
+  position: fixed;
+  z-index: 800;
+  width: 210px;
+  max-height: 230px;
+  pointer-events: auto;
+}
+.ml-flyout {
+  position: absolute;
+  z-index: 30;
+  top: 100%;
+  right: 8px;
+  width: 140px;
+}
+.ml-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 800;
+  pointer-events: none;
+}
+.ml-overlay > * {
+  pointer-events: auto;
+}
+.ml-docked {
+  width: min(720px, calc(100vw - 32px));
+  height: min(720px, calc(100vh - 24px));
+  align-self: flex-start;
+}
+.ml-window {
+  position: fixed;
+  z-index: 1000;
+  inset: 5vh 4vw;
+  pointer-events: auto;
+  transition: opacity 160ms ease;
+}
+.ml-floating {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: auto;
+}
+.ml-status-top {
+  position: fixed;
+  z-index: 950;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 14px;
+}
+.ml-status-start {
+  position: fixed;
+  z-index: 950;
+  top: 12px;
+  left: 12px;
+  padding: 6px 10px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.ml-toolbar-end {
+  position: fixed;
+  z-index: 950;
+  top: 12px;
+  right: 12px;
+  padding: 5px;
+}
+.ml-world-layer {
+  position: fixed;
+  z-index: 700;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.ml-visual-small {
+  position: relative;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+}
+.ml-peek {
+  position: fixed;
+  z-index: 1001;
+  inset: 0 25vw auto;
+  height: 5vh;
+  pointer-events: auto;
+}
+.ml-peek:hover + .ml-window:not(:has(dialog[open])) {
+  opacity: 0.08;
+}
+.moonlight-slide-enter-active,
+.moonlight-slide-leave-active {
+  transition:
+    transform 220ms ease,
+    opacity 160ms ease;
+}
+.moonlight-slide-enter-from,
+.moonlight-slide-leave-to {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+@media (max-width: 640px) {
+  .ml-split {
+    grid-template-columns: minmax(160px, 35%) minmax(0, 1fr);
+  }
+  .moonlight-toolbar {
+    flex-wrap: wrap;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ml-window {
+    transition: none;
+  }
+  .moonlight-spinner {
+    animation-duration: 2s;
+  }
+  .moonlight-slide-enter-active,
+  .moonlight-slide-leave-active,
+  .moonlight-chevron {
+    transition: none;
+  }
+}
+
+.moonlight-form-scroll {
+  overflow: auto;
+  min-height: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.moonlight-form-scroll .options {
+  position: relative;
+  inset: auto;
+  margin-top: 4px;
+}
+@media (max-width: 480px) {
+  .moonlight-form-scroll {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.moonlight-popup > [role='option'] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.moonlight-popup > [role='option']:hover,
+.moonlight-popup > [role='option'].active,
+.moonlight-popup > [role='option'][aria-selected='true'] {
+  background: var(--moonlight-accent-soft);
+}
+.moonlight-panel > :where(header, footer) {
+  flex-shrink: 0;
+}

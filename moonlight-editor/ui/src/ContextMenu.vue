@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import MoonlightSurface from 'moonlight-ui/MoonlightSurface.vue';
+import MoonlightButton from 'moonlight-ui/MoonlightButton.vue';
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useSelene, type Coordinate } from './selene';
 const selene = useSelene();
@@ -10,7 +12,7 @@ const menu = ref<{
   clientY: number;
   requestId: number;
 } | null>(null);
-const menuElement = ref<HTMLElement | null>(null);
+const menuElement = ref<InstanceType<typeof MoonlightSurface> | null>(null);
 const actions = ref<Array<{ id: string; label: string }>>([]);
 const actionsLoaded = ref(false);
 const clipboardError = ref('');
@@ -20,7 +22,7 @@ function close(): void {
   menu.value = null;
 }
 function dismissOutside(event: PointerEvent): void {
-  const element = menuElement.value;
+  const element = menuElement.value?.element;
   const root = element?.getRootNode();
   // Window listeners see the host as the target of clicks in a closed shadow root.
   // Hit-test within that root to preserve menu clicks until the button executes.
@@ -98,7 +100,7 @@ onMounted(() => {
       actionsLoaded.value = true;
       const current = menu.value;
       void nextTick(() => {
-        const element = menuElement.value;
+        const element = menuElement.value?.element;
         if (menu.value !== current || !element) {
           return;
         }
@@ -124,10 +126,12 @@ onBeforeUnmount(() => {
 });
 </script>
 <template>
-  <div
+  <MoonlightSurface
+    as="div"
+    variant="popup"
     v-if="menu && actionsLoaded"
     ref="menuElement"
-    class="context-menu"
+    class="context-menu moonlight-popup ml-context"
     role="menu"
     aria-label="Coordinate actions"
     :style="{ left: `${menu.x}px`, top: `${menu.y}px` }"
@@ -135,51 +139,21 @@ onBeforeUnmount(() => {
     @pointerup.stop
     @contextmenu.prevent
   >
-    <button v-for="action in actions" :key="action.id" type="button" role="menuitem" @click="execute(action.id)">
+    <MoonlightButton
+      class="moonlight-item"
+      variant="ghost"
+      v-for="action in actions"
+      :key="action.id"
+      type="button"
+      role="menuitem"
+      @click="execute(action.id)"
+    >
       {{ action.label }}
-    </button>
-    <div v-if="actions.length" class="separator" role="separator" />
-    <button type="button" role="menuitem" @click="copyCoordinates">Copy Coordinates</button>
-    <p v-if="clipboardError" class="clipboard-error" role="alert">{{ clipboardError }}</p>
-  </div>
+    </MoonlightButton>
+    <div v-if="actions.length" class="separator moonlight-divider" role="separator" />
+    <MoonlightButton class="moonlight-item" variant="ghost" type="button" role="menuitem" @click="copyCoordinates"
+      >Copy Coordinates</MoonlightButton
+    >
+    <p v-if="clipboardError" class="clipboard-error moonlight-error" role="alert">{{ clipboardError }}</p>
+  </MoonlightSurface>
 </template>
-<style scoped>
-.context-menu {
-  position: fixed;
-  /* Keep coordinate actions above world gizmos (700). */
-  z-index: 800;
-  width: 210px;
-  max-height: 230px;
-  overflow-y: auto;
-  padding: 4px;
-  border: 1px solid #46516a;
-  border-radius: 6px;
-  background: #18202f;
-  box-shadow: 0 6px 24px #0008;
-  pointer-events: auto;
-}
-button {
-  display: block;
-  width: 100%;
-  padding: 8px 12px;
-  border: 0;
-  border-radius: 3px;
-  background: transparent;
-  color: #edf2ff;
-  text-align: left;
-  cursor: pointer;
-}
-button:hover,
-button:focus-visible {
-  background: #33425c;
-}
-.separator {
-  height: 1px;
-  margin: 4px 8px;
-  background: #46516a;
-}
-.clipboard-error {
-  margin: 4px 12px;
-  color: #fda4af;
-}
-</style>

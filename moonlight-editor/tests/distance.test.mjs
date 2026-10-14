@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { pickedDistance, projectedCircle } from '../ui/src/distance.ts';
-import { defaultSchemaValue } from '../ui/src/schema.ts';
+import { defaultSchemaValue } from '../../moonlight-ui/ui/src/schema.ts';
 
 const center = { x: -103, y: -77, z: 2 };
 

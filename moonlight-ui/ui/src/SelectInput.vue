@@ -93,7 +93,14 @@ onUnmounted(() => document.removeEventListener('pointerdown', closeOutside));
 <template>
   <!-- Stop internal events from being retargeted to the closed editor shadow host. -->
   <div ref="root" class="select-input" @pointerdown.stop>
-    <div class="trigger" :class="{ open, disabled: disabled || !options.length, form: appearance === 'form' }">
+    <div
+      class="trigger moonlight-input"
+      :class="{
+        open,
+        disabled: disabled || !options.length,
+        form: appearance === 'form',
+      }"
+    >
       <input
         type="text"
         role="combobox"
@@ -116,8 +123,9 @@ onUnmounted(() => document.removeEventListener('pointerdown', closeOutside));
       />
       <ChevronDown :size="14" aria-hidden="true" />
     </div>
-    <div v-if="open" :id="id" ref="popup" class="options" role="listbox" :aria-label="label">
+    <div v-if="open" :id="id" ref="popup" class="options moonlight-popup ml-popover" role="listbox" :aria-label="label">
       <div
+        class="moonlight-item"
         v-for="(option, index) in filteredOptions"
         :id="`${id}-${index}`"
         :key="option"
@@ -132,7 +140,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', closeOutside));
         <Check v-if="value === option" :size="14" aria-hidden="true" />
       </div>
     </div>
-    <div v-if="open && !filteredOptions.length" class="empty" role="status">
+    <div v-if="open && !filteredOptions.length" class="empty moonlight-popup ml-popover" role="status">
       No matching {{ label.toLowerCase() }} options.
     </div>
   </div>
@@ -152,18 +160,11 @@ onUnmounted(() => document.removeEventListener('pointerdown', closeOutside));
   box-sizing: border-box;
   width: 100%;
   padding: 6px 8px;
-  border: 1px solid rgba(212, 212, 216, 0.22);
-  border-radius: 6px;
-  color: #fafafa;
-  background: #09090b;
-  font: inherit;
   text-align: left;
   cursor: pointer;
 }
 .trigger.form {
   padding: 8px 9px;
-  border-color: #3f3f46;
-  background: #18181b;
 }
 .trigger input {
   flex: 1;
@@ -185,31 +186,17 @@ svg {
 .trigger:focus-within,
 .trigger.open {
   outline: none;
-  border-color: #fb7185;
+  border-color: var(--moonlight-accent, #fb7185);
   box-shadow: 0 0 0 3px rgba(251, 113, 133, 0.14);
 }
 .trigger.disabled {
   opacity: 0.6;
   cursor: default;
 }
-.options,
-.empty {
-  position: absolute;
-  z-index: 20;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  max-height: 270px;
-  overflow: auto;
-  padding: 4px;
-  border: 1px solid #3f3f46;
-  border-radius: 7px;
-  background: #18181b;
-  box-shadow: 0 12px 30px #000a;
-}
+
 .empty {
   padding: 12px;
-  color: #a1a1aa;
+  color: var(--moonlight-text-muted, #a1a1aa);
 }
 [role='option'] {
   display: flex;
@@ -217,7 +204,7 @@ svg {
   gap: 8px;
   padding: 8px;
   border-radius: 5px;
-  color: #e4e4e7;
+  color: var(--moonlight-text, #e4e4e7);
   cursor: pointer;
 }
 [role='option'] span {

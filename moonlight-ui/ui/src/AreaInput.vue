@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MoonlightButton from './MoonlightButton.vue';
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import { MousePointer, Square, Circle, Plus, Minus, ChevronUp, ChevronDown, Eye } from '@lucide/vue';
 import { useSelene } from './selene';
@@ -60,7 +61,12 @@ function beginMove(e: PointerEvent, p: { x: number; y: number }): void {
   if (props.readonly || !shape.value || !selected.value) {
     return;
   }
-  moving = { pointerId: e.pointerId, ...p, original: { ...shape.value }, selection: { ...selected.value } };
+  moving = {
+    pointerId: e.pointerId,
+    ...p,
+    original: { ...shape.value },
+    selection: { ...selected.value },
+  };
   movingShape.value = true;
   canvas.value?.setPointerCapture(e.pointerId);
 }
@@ -153,7 +159,9 @@ const viewCoordinate = computed(() => {
   try {
     const area = parseArea(props.value);
     const first = area.include[0] ?? area.exclude[0];
-    if (!first) return null;
+    if (!first) {
+      return null;
+    }
     const coordinate = {
       x: first.type === 'rectangle' ? first.x + Math.floor((first.width - 1) / 2) : first.x,
       y: first.type === 'rectangle' ? first.y + Math.floor((first.height - 1) / 2) : first.y,
@@ -168,7 +176,9 @@ const viewCoordinate = computed(() => {
 });
 function view(): void {
   if (viewCoordinate.value) {
-    selene.network.sendToServer('moonlight-editor:move-camera', { ...viewCoordinate.value });
+    selene.network.sendToServer('moonlight-editor:move-camera', {
+      ...viewCoordinate.value,
+    });
   }
 }
 async function open(): Promise<void> {
@@ -237,7 +247,10 @@ async function load(): Promise<void> {
   map.value = undefined;
   image = undefined;
   try {
-    const overview = (await selene.http.request('/worldmap/image', { z: z.value, tiles: 'base' })) as Overview;
+    const overview = (await selene.http.request('/worldmap/image', {
+      z: z.value,
+      tiles: 'base',
+    })) as Overview;
     const bitmap = new Image();
     bitmap.src = overview.image;
     await bitmap.decode();
@@ -272,7 +285,10 @@ function redraw(): void {
     return;
   }
   ctx.drawImage(image, 0, 0);
-  const a: Area = { include: [...draft.value.include], exclude: [...draft.value.exclude] };
+  const a: Area = {
+    include: [...draft.value.include],
+    exclude: [...draft.value.exclude],
+  };
   if (pending.value) {
     a[group.value].push(pending.value);
   }
@@ -283,7 +299,7 @@ function redraw(): void {
   if (!overlay) {
     return;
   }
-  overlay.fillStyle = '#4ade80';
+  overlay.fillStyle = '#fff';
   for (const key of ['include', 'exclude'] as const) {
     overlay.globalCompositeOperation = key === 'include' ? 'source-over' : 'destination-out';
     for (const s of a[key]) {
@@ -315,7 +331,7 @@ function redraw(): void {
         selected.value?.group === key && selected.value.index === index
           ? '#fff'
           : key === 'include'
-            ? '#4ade80'
+            ? '#fff'
             : '#f87171';
       ctx.beginPath();
       if (s.type === 'rectangle') {
@@ -362,7 +378,13 @@ function beginPan(event: PointerEvent): void {
     return;
   }
   event.preventDefault();
-  pan = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, left: pane.scrollLeft, top: pane.scrollTop };
+  pan = {
+    pointerId: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+    left: pane.scrollLeft,
+    top: pane.scrollTop,
+  };
   panning.value = true;
   pane.setPointerCapture(event.pointerId);
 }
@@ -448,7 +470,12 @@ function move(e: PointerEvent): void {
           width: Math.abs(end.x - start.x) + 1,
           height: Math.abs(end.y - start.y) + 1,
         }
-      : { type: 'circle', ...start, z: z.value, radius: Math.round(Math.hypot(end.x - start.x, end.y - start.y)) };
+      : {
+          type: 'circle',
+          ...start,
+          z: z.value,
+          radius: Math.round(Math.hypot(end.x - start.x, end.y - start.y)),
+        };
   redraw();
 }
 function up(e: PointerEvent): void {
@@ -463,7 +490,10 @@ function up(e: PointerEvent): void {
   }
   move(e);
   draft.value[group.value].push(pending.value!);
-  selected.value = { group: group.value, index: draft.value[group.value].length - 1 };
+  selected.value = {
+    group: group.value,
+    index: draft.value[group.value].length - 1,
+  };
   start = undefined;
   pending.value = undefined;
   cursorMode.value = true;
@@ -504,8 +534,11 @@ function apply(): void {
 <template>
   <div class="area-input">
     <div class="area-controls">
-      <button class="picker-trigger" type="button" @click="open">Area Picker · {{ summary }}</button>
-      <button
+      <MoonlightButton variant="primary" class="picker-trigger" type="button" @click="open"
+        >Area Picker · {{ summary }}</MoonlightButton
+      >
+      <MoonlightButton
+        variant="primary"
         class="view-coordinate"
         type="button"
         aria-label="Move camera to area"
@@ -514,7 +547,7 @@ function apply(): void {
         @click="view"
       >
         <Eye :size="16" aria-hidden="true" />
-      </button>
+      </MoonlightButton>
     </div>
     <span v-if="error && !dialog?.open" role="alert">{{ error }}</span>
     <dialog
@@ -530,12 +563,12 @@ function apply(): void {
     >
       <header>
         <h2>Area Picker</h2>
-        <button class="secondary" type="button" @click="dialog?.close()">Close</button>
+        <MoonlightButton class="secondary" type="button" @click="dialog?.close()">Close</MoonlightButton>
       </header>
       <div class="toolbar">
         <div class="floor-control">
           <div class="floor-buttons">
-            <button
+            <MoonlightButton
               class="secondary"
               type="button"
               aria-label="Floor up"
@@ -544,8 +577,9 @@ function apply(): void {
               @click="stepFloor(1)"
             >
               <ChevronUp :size="16" aria-hidden="true" />
-            </button>
+            </MoonlightButton>
             <input
+              class="moonlight-input"
               v-model="floorText"
               type="text"
               inputmode="numeric"
@@ -553,7 +587,7 @@ function apply(): void {
               @change="commitFloor"
               @keydown.enter.prevent="commitFloor"
             />
-            <button
+            <MoonlightButton
               class="secondary"
               type="button"
               aria-label="Floor down"
@@ -562,11 +596,12 @@ function apply(): void {
               @click="stepFloor(-1)"
             >
               <ChevronDown :size="16" aria-hidden="true" />
-            </button>
+            </MoonlightButton>
           </div>
         </div>
         <div class="drawing-modes" role="group" aria-label="Drawing mode">
-          <button
+          <MoonlightButton
+            variant="primary"
             class="drawing-mode"
             type="button"
             aria-label="Cursor"
@@ -578,10 +613,11 @@ function apply(): void {
             "
           >
             <MousePointer :size="18" aria-hidden="true" />
-          </button>
+          </MoonlightButton>
           <template v-for="mode in drawingModes" :key="mode.label">
             <span v-if="mode.shape === 'rectangle'" class="mode-separator" aria-hidden="true" />
-            <button
+            <MoonlightButton
+              variant="primary"
               class="drawing-mode"
               type="button"
               :disabled="readonly"
@@ -598,12 +634,14 @@ function apply(): void {
                 <component :is="mode.shape === 'rectangle' ? Square : Circle" :size="20" />
                 <component :is="mode.group === 'include' ? Plus : Minus" class="operation-icon" :size="12" />
               </span>
-            </button>
+            </MoonlightButton>
           </template>
         </div>
       </div>
       <p v-if="loading" class="status">Loading full world map…</p>
-      <p v-if="error" class="error" role="alert">{{ error }} <button type="button" @click="load">Retry</button></p>
+      <p v-if="error" class="error" role="alert">
+        {{ error }} <MoonlightButton variant="primary" type="button" @click="load">Retry</MoonlightButton>
+      </p>
       <div class="workspace">
         <div
           ref="viewport"
@@ -621,18 +659,29 @@ function apply(): void {
             v-if="map"
             class="map-content"
             :class="{ 'cursor-mode': cursorMode, 'moving-shape': movingShape }"
-            :style="{ width: `${map.width * zoom}px`, height: `${map.height * zoom}px` }"
+            :style="{
+              width: `${map.width * zoom}px`,
+              height: `${map.height * zoom}px`,
+            }"
           >
             <canvas
               ref="canvas"
-              :style="map ? { width: `${map.width * zoom}px`, height: `${map.height * zoom}px` } : {}"
+              :style="
+                map
+                  ? {
+                      width: `${map.width * zoom}px`,
+                      height: `${map.height * zoom}px`,
+                    }
+                  : {}
+              "
               @pointerdown="down"
               @pointermove="move"
               @pointerup="up"
               @pointercancel="cancelDraw"
               @lostpointercapture="cancelDraw"
             />
-            <button
+            <MoonlightButton
+              variant="primary"
               v-for="handle in handles"
               :key="handle.key"
               class="resize-handle"
@@ -655,7 +704,8 @@ function apply(): void {
         <aside>
           <template v-for="key in ['include', 'exclude'] as const" :key="key"
             ><h3>{{ key === 'include' ? 'Includes' : 'Excludes' }}</h3>
-            <button
+            <MoonlightButton
+              variant="primary"
               v-for="(s, index) in draft[key]"
               :key="index"
               class="shape-item"
@@ -664,26 +714,31 @@ function apply(): void {
               @click="selectShape(key, index)"
             >
               {{ index + 1 }}. {{ s.type }} ({{ s.x }}, {{ s.y }}, {{ s.z }})
-            </button></template
+            </MoonlightButton></template
           >
           <div v-if="shape" class="shape-fields">
             <label v-for="[key, value] in shapeFields" :key="key"
               >{{ key }}
               <input
+                class="moonlight-input"
                 :value="value"
                 type="number"
                 step="1"
                 :readonly="readonly"
                 :min="key === 'radius' ? 0 : ['width', 'height'].includes(key) ? 1 : undefined"
                 @change="edit(key, $event)" /></label
-            ><button class="danger" type="button" :disabled="readonly" @click="remove">Delete shape</button>
+            ><MoonlightButton variant="danger" class="danger" type="button" :disabled="readonly" @click="remove"
+              >Delete shape</MoonlightButton
+            >
           </div>
         </aside>
       </div>
       <footer>
         <span></span>
-        <button class="secondary" type="button" @click="dialog?.close()">Cancel</button
-        ><button type="button" :disabled="readonly" @click="apply">Apply area</button>
+        <MoonlightButton class="secondary" type="button" @click="dialog?.close()">Cancel</MoonlightButton
+        ><MoonlightButton variant="primary" type="button" :disabled="readonly" @click="apply"
+          >Apply area</MoonlightButton
+        >
       </footer>
     </dialog>
   </div>
@@ -725,9 +780,9 @@ function apply(): void {
   box-sizing: border-box;
   padding: 0;
   overflow: auto;
-  color: #e4e4e7;
-  background: #18181b;
-  border: 1px solid #3f3f46;
+  color: var(--moonlight-text, #e4e4e7);
+  background: var(--moonlight-surface, #18181b);
+  border: 1px solid var(--moonlight-border, #3f3f46);
   border-radius: 8px;
   box-shadow: 0 18px 60px #000b;
   font:
@@ -767,7 +822,7 @@ footer {
 footer span {
   flex: 1;
   min-width: 180px;
-  color: #a1a1aa;
+  color: var(--moonlight-text-muted, #a1a1aa);
   font-size: 11px;
   overflow-wrap: anywhere;
 }
@@ -778,7 +833,7 @@ footer span {
 }
 .hint,
 .status {
-  color: #a1a1aa;
+  color: var(--moonlight-text-muted, #a1a1aa);
 }
 .error,
 .area-input > [role='alert'] {
@@ -828,7 +883,7 @@ footer span {
   flex: 0 0 1px;
   height: 24px;
   margin: 0 4px;
-  background: #3f3f46;
+  background: var(--moonlight-border, #3f3f46);
 }
 .drawing-mode {
   display: grid;
@@ -836,9 +891,9 @@ footer span {
   width: 36px;
   height: 36px;
   padding: 0;
-  border-color: #3f3f46;
+  border-color: var(--moonlight-border, #3f3f46);
   color: #d4d4d8;
-  background: #27272a;
+  background: var(--moonlight-surface-raised, #27272a);
 }
 .mode-icon {
   position: relative;
@@ -850,16 +905,16 @@ footer span {
   bottom: -4px;
   padding: 1px;
   border-radius: 3px;
-  background: #27272a;
+  background: var(--moonlight-surface-raised, #27272a);
 }
 .drawing-mode[aria-pressed='true'] .operation-icon {
   background: #51303a;
 }
 .drawing-mode[aria-pressed='true'] {
-  border-color: #fb7185;
+  border-color: var(--moonlight-accent, #fb7185);
   color: #ffe4e6;
   background: rgba(251, 113, 133, 0.24);
-  box-shadow: inset 0 0 0 1px #fb7185;
+  box-shadow: inset 0 0 0 1px var(--moonlight-accent, #fb7185);
 }
 .toolbar > button {
   align-self: end;
@@ -868,61 +923,11 @@ input,
 select {
   box-sizing: border-box;
   min-width: 0;
-  padding: 8px 9px;
-  border: 1px solid #3f3f46;
-  border-radius: 6px;
-  outline: none;
-  color: #fafafa;
-  background: #18181b;
-  font: inherit;
 }
 input {
   width: 80px;
 }
-input:focus,
-select:focus {
-  border-color: #fb7185;
-  box-shadow: 0 0 0 3px rgba(251, 113, 133, 0.14);
-}
-button {
-  padding: 5px 13px;
-  border: 1px solid rgba(251, 113, 133, 0.42);
-  border-radius: 6px;
-  color: #ffe4e6;
-  background: rgba(251, 113, 133, 0.14);
-  font: inherit;
-  cursor: pointer;
-}
-button:hover:not(:disabled),
-button:focus-visible {
-  outline: none;
-  border-color: rgba(251, 113, 133, 0.42);
-  background: rgba(251, 113, 133, 0.24);
-}
-button:focus-visible {
-  box-shadow: 0 0 0 3px rgba(251, 113, 133, 0.14);
-}
-button.secondary {
-  border-color: rgba(212, 212, 216, 0.22);
-  color: #d4d4d8;
-  background: #27272a;
-}
-button.secondary:hover,
-button.secondary:focus-visible {
-  border-color: rgba(251, 113, 133, 0.42);
-  color: #fda4af;
-  background: rgba(251, 113, 133, 0.14);
-}
-button.danger {
-  border-color: rgba(248, 113, 113, 0.42);
-  color: #fee2e2;
-  background: rgba(248, 113, 113, 0.14);
-}
-button:disabled,
-select:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
+
 .picker-trigger {
   width: 100%;
   padding: 8px 12px;
@@ -939,7 +944,7 @@ select:disabled {
   touch-action: none;
   flex: 1;
   overflow: auto;
-  background: #09090b;
+  background: var(--moonlight-background, #09090b);
   min-width: 0;
 }
 .map-content {
@@ -957,14 +962,14 @@ select:disabled {
   height: 10px;
   padding: 0;
   transform: translate(-50%, -50%);
-  border: 1px solid #18181b;
+  border: 1px solid var(--moonlight-surface, #18181b);
   border-radius: 2px;
-  background: #fafafa;
+  background: var(--moonlight-text-strong, #fafafa);
   touch-action: none;
 }
 .resize-handle:hover,
 .resize-handle:focus-visible {
-  background: #fb7185;
+  background: var(--moonlight-accent, #fb7185);
 }
 canvas {
   display: block;
@@ -982,12 +987,12 @@ aside {
   box-sizing: border-box;
   padding: 12px;
   overflow: auto;
-  border-left: 1px solid #3f3f46;
-  background: #09090b;
+  border-left: 1px solid var(--moonlight-border, #3f3f46);
+  background: var(--moonlight-background, #09090b);
 }
 aside h3 {
   margin: 12px 0 8px;
-  color: #a1a1aa;
+  color: var(--moonlight-text-muted, #a1a1aa);
   font-size: 11px;
   font-weight: 650;
 }
@@ -1006,14 +1011,14 @@ aside h3:first-child {
   overflow-wrap: anywhere;
 }
 .shape-item[aria-pressed='true'] {
-  color: #fda4af;
+  color: var(--moonlight-error, #fda4af);
   border-color: rgba(251, 113, 133, 0.42);
   background: rgba(251, 113, 133, 0.14);
 }
 .shape-fields {
   margin-top: 14px;
   padding-top: 12px;
-  border-top: 1px solid #3f3f46;
+  border-top: 1px solid var(--moonlight-border, #3f3f46);
 }
 .shape-fields label {
   display: flex;
@@ -1043,7 +1048,7 @@ aside h3:first-child {
     flex: 0 1 180px;
     width: 100%;
     border-left: 0;
-    border-top: 1px solid #3f3f46;
+    border-top: 1px solid var(--moonlight-border, #3f3f46);
   }
 }
 </style>

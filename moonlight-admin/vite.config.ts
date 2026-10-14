@@ -1,8 +1,19 @@
+import { fileURLToPath, URL } from 'node:url';
 import vue from '@vitejs/plugin-vue';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
   root: 'ui',
+  resolve: {
+    alias: [
+      {
+        find: 'moonlight-ui/styles',
+        replacement: fileURLToPath(new URL('../moonlight-ui/ui/styles', import.meta.url)),
+      },
+      { find: 'moonlight-ui', replacement: fileURLToPath(new URL('../moonlight-ui/ui/src', import.meta.url)) },
+    ],
+    dedupe: ['vue', '@lucide/vue'],
+  },
   base: './',
   publicDir: 'public',
   server: {

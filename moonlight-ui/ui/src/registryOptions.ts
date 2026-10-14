@@ -5,7 +5,7 @@ export interface RegistryOption {
 }
 
 function objectFields(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null ? value as Record<string, unknown> : {};
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
 }
 
 export function parseRegistryOptions(registry: string, options: unknown[]): RegistryOption[] {
@@ -19,11 +19,18 @@ export function parseRegistryOptions(registry: string, options: unknown[]): Regi
     }
     const fields = objectFields(data);
     const metadata = objectFields(fields.metadata);
-    const visual = registry === 'visuals' || registry === 'selene:visuals' ? value
-      : typeof metadata.visual === 'string' ? metadata.visual
-      : typeof fields.visual === 'string' ? fields.visual
-      : typeof serverVisual === 'string' ? serverVisual
-      : registry === 'entities' || registry === 'selene:entities' ? value : undefined;
+    const visual =
+      registry === 'visuals' || registry === 'selene:visuals'
+        ? value
+        : typeof metadata.visual === 'string'
+          ? metadata.visual
+          : typeof fields.visual === 'string'
+            ? fields.visual
+            : typeof serverVisual === 'string'
+              ? serverVisual
+              : registry === 'entities' || registry === 'selene:entities'
+                ? value
+                : undefined;
     return [{ value, label, ...(typeof visual === 'string' ? { visual } : {}) }];
   });
 }

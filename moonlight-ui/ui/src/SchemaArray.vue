@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MoonlightButton from './MoonlightButton.vue';
 import { computed } from 'vue';
 import { defaultSchemaValue, type DistancePick, type SchemaDefinition } from './schema';
 import SchemaForm from './SchemaForm.vue';
@@ -46,9 +47,14 @@ function add(): void {
     <div v-for="(value, index) in entries" :key="index" class="entry">
       <div class="entry-heading">
         <span>Entry {{ index + 1 }}</span>
-        <button :disabled="readonly" type="button" :aria-label="`Remove entry ${index + 1}`" @click="remove(index)">
+        <MoonlightButton
+          :disabled="readonly"
+          type="button"
+          :aria-label="`Remove entry ${index + 1}`"
+          @click="remove(index)"
+        >
           Remove
-        </button>
+        </MoonlightButton>
       </div>
       <SchemaForm
         :schema="{ value: valueType }"
@@ -59,11 +65,14 @@ function add(): void {
         @search-registry="(registry, query, lookup) => emit('searchRegistry', registry, query, lookup)"
         @pick-coordinate="emit('pickCoordinate', `${index}${$event === 'value' ? '' : $event.slice(5)}`)"
         @pick-distance="
-          emit('pickDistance', { ...$event, field: `${index}${$event.field === 'value' ? '' : $event.field.slice(5)}` })
+          emit('pickDistance', {
+            ...$event,
+            field: `${index}${$event.field === 'value' ? '' : $event.field.slice(5)}`,
+          })
         "
       />
     </div>
-    <button :disabled="readonly" type="button" @click="add">Add entry</button>
+    <MoonlightButton :disabled="readonly" type="button" @click="add">Add entry</MoonlightButton>
   </div>
 </template>
 
@@ -73,7 +82,7 @@ function add(): void {
   gap: 12px;
 }
 .entry {
-  border: 1px solid #3f3f46;
+  border: 1px solid var(--moonlight-border, #3f3f46);
   border-radius: 6px;
 }
 .entry-heading {
@@ -85,10 +94,5 @@ function add(): void {
 }
 button {
   padding: 8px 12px;
-  border: 1px solid #3f3f46;
-  border-radius: 6px;
-  color: #fafafa;
-  background: #18181b;
-  cursor: pointer;
 }
 </style>

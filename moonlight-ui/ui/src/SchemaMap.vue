@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MoonlightButton from './MoonlightButton.vue';
 import { computed, reactive, ref, watch } from 'vue';
 import { ExternalLink, Trash2 } from '@lucide/vue';
 import { defaultSchemaValue, type DistancePick, type SchemaDefinition } from './schema';
@@ -61,7 +62,10 @@ function entryOption(key: string): RegistryOption | undefined {
 
 function openRegistryEntry(key: string): void {
   if (keyRegistry.value && key) {
-    selene.network.sendToServer('moonlight-editor:open-registry-entry', { registry: keyRegistry.value, value: key });
+    selene.network.sendToServer('moonlight-editor:open-registry-entry', {
+      registry: keyRegistry.value,
+      value: key,
+    });
   }
 }
 const primitiveValue = computed(() => {
@@ -180,7 +184,9 @@ function valueLabel(value: unknown): string {
     <table v-if="primitiveValue" class="entries" :class="{ 'registry-keys': keyRegistry }">
       <thead>
         <tr>
-          <th v-if="keyRegistry" scope="col" class="entry-preview"><span class="visually-hidden">Preview</span></th>
+          <th v-if="keyRegistry" scope="col" class="entry-preview">
+            <span class="visually-hidden">Preview</span>
+          </th>
           <th scope="col" class="key-column">Key</th>
           <th scope="col">Value</th>
           <th scope="col" class="entry-actions">Actions</th>
@@ -218,9 +224,11 @@ function valueLabel(value: unknown): string {
           </td>
           <td class="entry-actions">
             <div class="action-buttons">
-              <button
+              <MoonlightButton
                 v-if="keyRegistry"
                 type="button"
+                variant="primary"
+                size="icon"
                 class="open-registry-entry"
                 :disabled="!key"
                 :aria-label="`Open ${entryLabel(key)} registry entry in the form`"
@@ -228,8 +236,9 @@ function valueLabel(value: unknown): string {
                 @click="openRegistryEntry(key)"
               >
                 <ExternalLink :size="16" aria-hidden="true" />
-              </button>
-              <button
+              </MoonlightButton>
+              <MoonlightButton
+                size="icon"
                 class="remove-entry"
                 :disabled="readonly"
                 type="button"
@@ -238,7 +247,7 @@ function valueLabel(value: unknown): string {
                 @click="remove(key)"
               >
                 <Trash2 :size="16" aria-hidden="true" />
-              </button>
+              </MoonlightButton>
             </div>
           </td>
         </tr>
@@ -255,9 +264,11 @@ function valueLabel(value: unknown): string {
             <span>{{ entryLabel(key) }}</span>
           </span>
           <div class="action-buttons">
-            <button
+            <MoonlightButton
               v-if="keyRegistry"
               type="button"
+              variant="primary"
+              size="icon"
               class="open-registry-entry"
               :disabled="!key"
               :aria-label="`Open ${entryLabel(key)} registry entry in the form`"
@@ -265,8 +276,9 @@ function valueLabel(value: unknown): string {
               @click="openRegistryEntry(key)"
             >
               <ExternalLink :size="16" aria-hidden="true" />
-            </button>
-            <button
+            </MoonlightButton>
+            <MoonlightButton
+              size="icon"
               class="remove-entry"
               :disabled="readonly"
               type="button"
@@ -275,7 +287,7 @@ function valueLabel(value: unknown): string {
               @click="remove(key)"
             >
               <Trash2 :size="16" aria-hidden="true" />
-            </button>
+            </MoonlightButton>
           </div>
         </div>
         <SchemaForm
@@ -320,7 +332,7 @@ function valueLabel(value: unknown): string {
         @update-contents="draft = $event"
         @search-registry="(registry, query, lookup) => emit('searchRegistry', registry, query, lookup)"
       />
-      <button type="button" :disabled="!selectedKey || duplicate" @click="add">Add entry</button>
+      <MoonlightButton type="button" :disabled="!selectedKey || duplicate" @click="add">Add entry</MoonlightButton>
     </div>
     <small v-if="duplicate" role="status">This key already exists.</small>
   </div>
@@ -340,22 +352,22 @@ function valueLabel(value: unknown): string {
 .entries th,
 .entries td {
   padding: 10px 12px;
-  border-bottom: 1px solid #3f3f46;
+  border-bottom: 1px solid var(--moonlight-border, #3f3f46);
   text-align: left;
   vertical-align: middle;
   overflow-wrap: anywhere;
 }
 .entries thead th {
-  color: #a1a1aa;
+  color: var(--moonlight-text-muted, #a1a1aa);
   font-size: 12px;
   font-weight: 650;
-  background: #18181b;
+  background: var(--moonlight-surface, #18181b);
 }
 .entries .key-column {
   width: 30%;
 }
 .entries .entry-preview {
-  width: 44px;
+  width: 68px;
 }
 .visually-hidden {
   position: absolute;
@@ -371,7 +383,7 @@ function valueLabel(value: unknown): string {
   text-align: right;
 }
 .entries.registry-keys .entry-actions {
-  width: 84px;
+  width: 104px;
 }
 .action-buttons {
   display: flex;
@@ -383,7 +395,7 @@ function valueLabel(value: unknown): string {
   font-weight: 500;
 }
 .entry {
-  border: 1px solid #3f3f46;
+  border: 1px solid var(--moonlight-border, #3f3f46);
   border-radius: 6px;
   overflow: visible;
 }
@@ -405,7 +417,7 @@ function valueLabel(value: unknown): string {
   padding: 0;
 }
 .empty {
-  color: #71717a;
+  color: var(--moonlight-text-subtle, #71717a);
 }
 .entry-key {
   display: flex;
@@ -418,41 +430,14 @@ function valueLabel(value: unknown): string {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
 }
-button {
-  padding: 8px 12px;
-  border: 1px solid #3f3f46;
-  border-radius: 6px;
-  color: #fafafa;
-  background: #18181b;
-  cursor: pointer;
-}
-button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-.remove-entry {
-  display: inline-grid;
-  place-items: center;
+
+.action-buttons > .moonlight-button {
+  flex: 0 0 36px;
   width: 36px;
   height: 36px;
   padding: 0;
-}
-.open-registry-entry {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: 1px solid rgba(251, 113, 133, 0.42);
-  color: #ffe4e6;
-  background: rgba(251, 113, 133, 0.14);
-}
-.open-registry-entry:hover:not(:disabled),
-.open-registry-entry:focus-visible {
-  background: rgba(251, 113, 133, 0.24);
 }
 small {
-  color: #fda4af;
+  color: var(--moonlight-error, #fda4af);
 }
 </style>

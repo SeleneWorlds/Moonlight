@@ -1,8 +1,13 @@
 <script setup lang="ts">
+import MoonlightButton from './MoonlightButton.vue';
 import { ref, useId, watch } from 'vue';
 import { useSelene } from './selene';
 
-const props = defineProps<{ value: string; required: boolean; readonly?: boolean }>();
+const props = defineProps<{
+  value: string;
+  required: boolean;
+  readonly?: boolean;
+}>();
 const emit = defineEmits<{ select: [value: string] }>();
 const selene = useSelene();
 const id = useId();
@@ -38,7 +43,9 @@ watch(
     });
 
     try {
-      const result = (await selene.http.request('/scripts', request)) as { options: string[] };
+      const result = (await selene.http.request('/scripts', request)) as {
+        options: string[];
+      };
       if (!cancelled) {
         options.value = result.options;
       }
@@ -115,6 +122,7 @@ function keydown(event: KeyboardEvent): void {
 <template>
   <div class="script-input">
     <input
+      class="moonlight-input"
       :readonly="readonly"
       :value="query"
       type="text"
@@ -131,10 +139,13 @@ function keydown(event: KeyboardEvent): void {
       @blur="close"
       @keydown="keydown"
     />
-    <div v-if="open && !readonly" :id="id" class="options" role="listbox">
-      <button
+    <div v-if="open && !readonly" :id="id" class="options moonlight-popup ml-popover" role="listbox">
+      <MoonlightButton
+        class="moonlight-item"
+        variant="ghost"
         v-for="(option, index) in options"
-        :id="`${id}-${index}`"
+        :id="`${id}-${index}
+`"
         :key="option"
         type="button"
         role="option"
@@ -144,8 +155,10 @@ function keydown(event: KeyboardEvent): void {
         @click="select(option)"
       >
         {{ option }}
-      </button>
-      <p v-if="!options.length" role="status">{{ loading ? 'Loading scripts…' : error || 'No matching scripts.' }}</p>
+      </MoonlightButton>
+      <p v-if="!options.length" role="status">
+        {{ loading ? 'Loading scripts…' : error || 'No matching scripts.' }}
+      </p>
     </div>
   </div>
 </template>
@@ -158,44 +171,13 @@ function keydown(event: KeyboardEvent): void {
 input {
   box-sizing: border-box;
   width: 100%;
-  padding: 8px 9px;
-  border: 1px solid #3f3f46;
-  border-radius: 6px;
-  outline: none;
-  color: #fafafa;
-  background: #18181b;
-  font: inherit;
 }
-input:focus {
-  border-color: #fb7185;
-  box-shadow: 0 0 0 3px rgba(251, 113, 133, 0.14);
-}
-.options {
-  position: absolute;
-  z-index: 20;
-  top: calc(100% + 4px);
-  right: 0;
-  left: 0;
-  max-height: 270px;
-  overflow: auto;
-  padding: 4px;
-  border: 1px solid #3f3f46;
-  border-radius: 7px;
-  background: #18181b;
-  box-shadow: 0 12px 30px #000a;
-}
+
 button {
   display: block;
   width: 100%;
-  padding: 8px;
-  border: 0;
-  border-radius: 5px;
-  color: #e4e4e7;
-  background: transparent;
-  font: inherit;
   text-align: left;
   overflow-wrap: anywhere;
-  cursor: pointer;
 }
 button:hover,
 button.active,
@@ -204,6 +186,6 @@ button[aria-selected='true'] {
 }
 p {
   margin: 8px;
-  color: #71717a;
+  color: var(--moonlight-text-subtle, #71717a);
 }
 </style>

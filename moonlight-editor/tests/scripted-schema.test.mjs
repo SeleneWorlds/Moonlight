@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { test } from 'node:test';
-import { defaultSchemaValue, resolveSchemaField } from '../ui/src/schema.ts';
+import { defaultSchemaValue, resolveSchemaField } from '../../moonlight-ui/ui/src/schema.ts';
 
 test('scripted schema properties start with an object value', () => {
   assert.deepEqual(defaultSchemaValue({ type: 'scripted_schema_lookup', property: 'script' }), {});
