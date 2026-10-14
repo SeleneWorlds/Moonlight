@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import MoonlightSurface from 'moonlight-ui/MoonlightSurface.vue';
 import MoonlightButton from 'moonlight-ui/MoonlightButton.vue';
+import { ownsEscape } from 'moonlight-ui/keyboard';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Focus, Database, ArrowDown, ArrowUp, Grid2X2, Eye, Lightbulb, X } from '@lucide/vue';
 import type { DistancePick, SchemaDefinition } from 'moonlight-ui/schema';
@@ -1123,7 +1124,7 @@ function startPicker(message: string): void {
 }
 
 function handleKeyDown(event: KeyboardEvent): void {
-  if (event.key === 'Escape' && event.target instanceof Element && event.target.closest('dialog[open]')) {
+  if (event.key === 'Escape' && ownsEscape(event)) {
     return;
   }
   if ((pickingCoordinateField || pickingRegistry || pickingDistance.value) && event.key === 'Escape' && !event.repeat) {

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import * as vue from 'vue';
 import * as scenarios from '../ui/src/scenarios.ts';
+import * as keyboard from '../../moonlight-ui/ui/src/keyboard.ts';
 const require = createRequire(import.meta.url);
 const { parse, compileScript } = require('@vue/compiler-sfc');
 const { transformSync } = require('esbuild');
@@ -91,6 +92,7 @@ function editor(
       if (id === 'vue') return { ...vue, onMounted: () => {}, onBeforeUnmount: () => {} };
       if (id === './selene') return { useSelene: () => api, requestEditorOperation };
       if (id === './scenarios') return scenarios;
+      if (id === 'moonlight-ui/keyboard') return keyboard;
       if (id === 'moonlight-ui/LatestRequest') return { latestRequest: () => ({ push() {}, cancel() {}, flush() {} }) };
       if (id === './distance' || id === 'moonlight-ui/registryOptions') return {};
       if (id.endsWith('.vue') || id === '@lucide/vue') return {};

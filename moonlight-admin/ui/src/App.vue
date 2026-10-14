@@ -3,6 +3,7 @@ import ButtonGroup from 'moonlight-ui/ButtonGroup.vue';
 import MoonlightSwitch from 'moonlight-ui/MoonlightSwitch.vue';
 import MoonlightSurface from 'moonlight-ui/MoonlightSurface.vue';
 import MoonlightButton from 'moonlight-ui/MoonlightButton.vue';
+import { ownsEscape } from 'moonlight-ui/keyboard';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, useTemplateRef } from 'vue';
 import { ChevronDown, Star, X } from '@lucide/vue';
 import { z } from 'zod';
@@ -572,6 +573,9 @@ function setMenuOpen(open: boolean): void {
 }
 
 function handleMenuKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && ownsEscape(event)) {
+    return;
+  }
   if (pickingCoordinate.value) {
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -613,7 +617,7 @@ onMounted(() => {
     selene.network.onPayload('moonlight-admin:target-options', receiveTargetOptions),
     selene.network.onConnected(requestActions),
   );
-  window.addEventListener('keydown', handleMenuKeydown, true);
+  window.addEventListener('keydown', handleMenuKeydown);
 });
 
 onBeforeUnmount(() => {
@@ -623,7 +627,7 @@ onBeforeUnmount(() => {
   for (const unsubscribe of unsubscribers) {
     unsubscribe();
   }
-  window.removeEventListener('keydown', handleMenuKeydown, true);
+  window.removeEventListener('keydown', handleMenuKeydown);
 });
 </script>
 
