@@ -26,6 +26,10 @@ defineProps<{ label: string; visual?: string; interactive?: boolean }>();
 .interactive {
   pointer-events: auto;
 }
+.moonlight-world-marker:hover,
+.moonlight-world-marker:focus-visible {
+  z-index: 1;
+}
 .marker {
   position: relative;
   width: 26px;
