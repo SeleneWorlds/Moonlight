@@ -52,6 +52,7 @@ function editor(
               fields: JSON.parse(contents),
             })),
           schema: { [payload.registry.endsWith('spawns') ? 'active' : 'enabled']: 'enabled' },
+          icon: payload.registry.endsWith('spawns') ? 'paw-print' : 'user',
         };
       case 'open-file':
         return [...files, ...definitions].find((file) => file.path === payload.path);
@@ -197,6 +198,7 @@ test('scenario creation and entry creation use selected registry and persist mem
     view.state.listedFiles.map((file) => file.registry),
     ['demo:spawns'],
   );
+  assert.equal(view.state.listedFiles[0].icon, 'paw-print');
   await vue.nextTick();
   assert.equal(view.storage.get('moonlight-editor.scenarios'), undefined);
   assert.deepEqual(JSON.parse(view.definitions[0].contents), { name: 'New Raid', enabled: false });

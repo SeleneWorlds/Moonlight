@@ -51,8 +51,8 @@ function mount(overrides = {}) {
     registries: ['demo:npcs', 'demo:spawns'],
     contents: '{"enabled":true,"metadata":{"scenario":"Raid","name":"Guard"}}',
     projectFiles: [
-      { path: 'demo/server/data/demo/npcs/guard.json', registry: 'demo:npcs' },
-      { path: 'demo/server/data/demo/spawns/wolves.json', registry: 'demo:spawns' },
+      { path: 'demo/server/data/demo/npcs/guard.json', registry: 'demo:npcs', icon: 'user' },
+      { path: 'demo/server/data/demo/spawns/wolves.json', registry: 'demo:spawns', icon: 'paw-print' },
     ],
     projectLoading: false,
     editorLoading: false,
@@ -225,5 +225,16 @@ test('managed scenario uses the existing entry header switch and shows its displ
   enabled.props.onClick();
   assert.equal(JSON.parse(view.props.contents).enabled, false);
   assert.ok(view.all().some((node) => node.type === 'span' && view.text(node) === 'Raid'));
+  view.app.unmount();
+});
+
+test('registry icons appear beside entries only in scenario mode', async () => {
+  const view = mount();
+  const entryIcons = () => view.all().filter((node) => node.props?.name === 'user' || node.props?.name === 'paw-print');
+  assert.equal(entryIcons().length, 2);
+  assert.ok(entryIcons().every((node) => node.props['aria-hidden'] === 'true' && node.props.size === 16));
+  view.props.scenarioMode = false;
+  await nextTick();
+  assert.equal(entryIcons().length, 0);
   view.app.unmount();
 });

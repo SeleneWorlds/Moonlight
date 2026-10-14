@@ -7,6 +7,7 @@ import { Copy, FilePlus, Pipette, X, ArrowLeftRight, Plus } from '@lucide/vue';
 import type { DistancePick, SchemaDefinition } from 'moonlight-ui/schema';
 import SchemaForm from 'moonlight-ui/SchemaForm.vue';
 import SelectInput from 'moonlight-ui/SelectInput.vue';
+import RegistryIcon from './RegistryIcon.vue';
 
 const searchInputId = useId();
 
@@ -14,6 +15,7 @@ interface ProjectFile {
   path: string;
   name?: string;
   registry?: string;
+  icon?: string;
 }
 
 const props = defineProps<{
@@ -491,7 +493,14 @@ function searchRegistry(registry: string, query: string, lookup?: boolean): void
                 @contextmenu.prevent.stop="contextPath = file.path"
                 @click="emit('openFile', file.path)"
               >
-                <span class="file-heading ml-row">
+                <span class="file-heading ml-row ml-gap">
+                  <RegistryIcon
+                    v-if="scenarioMode && file.icon"
+                    :name="file.icon"
+                    :title="file.registry"
+                    :size="16"
+                    aria-hidden="true"
+                  />
                   <span class="file-name ml-grow ml-truncate">{{ file.name ?? pathWithinRegistry(file.path) }}</span>
                   <span
                     v-if="localPaths.includes(file.path)"

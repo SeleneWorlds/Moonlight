@@ -33,6 +33,7 @@ interface ProjectFile {
   registry?: string;
   scenario?: string;
   enabled?: boolean;
+  icon?: string;
 }
 
 const selene = useSelene();
@@ -240,6 +241,7 @@ const scenarioLabels = computed(() =>
   Object.fromEntries(scenarioDefinitions.value.map((scenario) => [scenario.identifier, scenario.name])),
 );
 const scenarioProjects = ref<ProjectFile[]>([]);
+const registryIcons = ref<Record<string, string | undefined>>({});
 const scenarioRegistrySchema = ref<Record<string, SchemaDefinition> | null>(null);
 const scenarioSchemas = ref<Record<string, Record<string, SchemaDefinition> | null>>({});
 const scenarioBusy = ref(false);
@@ -316,6 +318,7 @@ async function loadScenarioProjects(): Promise<void> {
         })) as {
           files: Array<ProjectFile & { metadata: Record<string, unknown>; fields: Record<string, unknown> }>;
           schema: Record<string, SchemaDefinition> | null;
+          icon?: string;
         };
         return { ...result, registry };
       },
@@ -325,6 +328,7 @@ async function loadScenarioProjects(): Promise<void> {
         path: file.path,
         name: file.name,
         registry: result.registry,
+        icon: result.icon,
         enabled: Object.entries(result.schema ?? {}).some(
           ([field, definition]) =>
             (typeof definition === 'string' ? definition : definition.type) === 'enabled' &&
@@ -337,6 +341,7 @@ async function loadScenarioProjects(): Promise<void> {
       return;
     }
     scenarioDefinitions.value = definitions;
+    registryIcons.value = Object.fromEntries(results.map((result) => [result.registry, result.icon]));
     scenarioProjects.value = files;
     scenarioSchemas.value = {
       ...Object.fromEntries(results.map((result) => [result.registry, result.schema])),
@@ -507,7 +512,12 @@ const listedFiles = computed<ProjectFile[]>(() => {
         (entry.draft || (scenarioMode.value && entry.contents !== entry.appliedContents)) &&
         bundleFromPath(path) === selectedBundle.value,
     )
-    .map(([path, entry]) => ({ path, registry: entry.registry, scenario: scenarioFromContents(entry.contents) }));
+    .map(([path, entry]) => ({
+      path,
+      registry: entry.registry,
+      icon: registryIcons.value[entry.registry ?? ''],
+      scenario: scenarioFromContents(entry.contents),
+    }));
   return [...files, ...drafts.filter(({ path }) => !files.some((file) => file.path === path))]
     .filter((file) =>
       scenarioMode.value
