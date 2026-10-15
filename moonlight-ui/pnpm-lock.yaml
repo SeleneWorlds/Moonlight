@@ -11,15 +11,16 @@ importers:
       '@lucide/vue':
         specifier: ^1.49.0
         version: 1.57.0(vue@3.5.44)
-      selene:
-        specifier: file:../../../sdk/selene
-        version: file:../../../sdk/selene
-      selene-vue:
-        specifier: file:../../../sdk/selene-vue
-        version: file:../../../sdk/selene-vue(selene@file:../../../sdk/selene)(vue@3.5.44)
       vue:
         specifier: ^3.5.13
         version: 3.5.44
+    devDependencies:
+      selene:
+        specifier: github:SeleneWorlds/Selene#e86fd56ce84ad864598dd3a9609d7455c02f20d1&path:/sdk/selene
+        version: https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene
+      selene-vue:
+        specifier: github:SeleneWorlds/Selene#e86fd56ce84ad864598dd3a9609d7455c02f20d1&path:/sdk/selene-vue
+        version: https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene-vue(selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene)(vue@3.5.44)
 
 packages:
 
@@ -100,14 +101,16 @@ packages:
     resolution: {integrity: sha512-zkd+e9S1AQHhmaBKye9zlFHWjOwVgqXl1q3ECYy8561K7qxR2cREf/STLskulBFd78k6AOFeA+ff1TtEzk9bAA==}
     engines: {node: ^10 || ^12 || >=14}
 
-  selene-vue@file:../../../sdk/selene-vue:
-    resolution: {directory: ../../../sdk/selene-vue, type: directory}
+  selene-vue@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene-vue:
+    resolution: {gitHosted: true, integrity: sha512-sics9JwQO7lKWKeS+c2tcx18nc9SNr7QAAcTb01p4I5Q8TFcwooULZ3ee8BbYe6n0CQiN+M4xm1DBWL2NgvxRg==, tarball: https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1}
+    version: 0.1.0
     peerDependencies:
       selene: ^0.1.0
       vue: ^3.5.13
 
-  selene@file:../../../sdk/selene:
-    resolution: {directory: ../../../sdk/selene, type: directory}
+  selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene:
+    resolution: {gitHosted: true, integrity: sha512-sics9JwQO7lKWKeS+c2tcx18nc9SNr7QAAcTb01p4I5Q8TFcwooULZ3ee8BbYe6n0CQiN+M4xm1DBWL2NgvxRg==, tarball: https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1}
+    version: 0.1.0
 
   source-map-js@1.2.2:
     resolution: {integrity: sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==}
@@ -216,12 +219,12 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.2
 
-  selene-vue@file:../../../sdk/selene-vue(selene@file:../../../sdk/selene)(vue@3.5.44):
+  selene-vue@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene-vue(selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene)(vue@3.5.44):
     dependencies:
-      selene: file:../../../sdk/selene
+      selene: https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene
       vue: 3.5.44
 
-  selene@file:../../../sdk/selene: {}
+  selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene: {}
 
   source-map-js@1.2.2: {}
 

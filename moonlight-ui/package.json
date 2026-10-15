@@ -10,16 +10,18 @@
   },
   "peerDependencies": {
     "vue": "^3.5.13",
-    "@lucide/vue": "^1.49.0"
+    "@lucide/vue": "^1.49.0",
+    "selene": "^0.1.0",
+    "selene-vue": "^0.1.0"
   },
   "peerDependenciesMeta": {
     "@lucide/vue": {
       "optional": true
     }
   },
-  "dependencies": {
-    "selene-vue": "github:SeleneWorlds/Selene#main&path:/sdk/selene-vue",
-    "selene": "github:SeleneWorlds/Selene#11e318c90a397d0d0191bf9567e0dce97efceed4&path:/sdk/selene"
-  },
-  "packageManager": "pnpm@11.5.2"
+  "packageManager": "pnpm@11.5.2",
+  "devDependencies": {
+    "selene": "github:SeleneWorlds/Selene#e86fd56ce84ad864598dd3a9609d7455c02f20d1&path:/sdk/selene",
+    "selene-vue": "github:SeleneWorlds/Selene#e86fd56ce84ad864598dd3a9609d7455c02f20d1&path:/sdk/selene-vue"
+  }
 }
