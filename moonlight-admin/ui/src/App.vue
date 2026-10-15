@@ -584,22 +584,21 @@ function handleMenuKeydown(event: KeyboardEvent): void {
     }
     return;
   }
-  const shouldExecute = event.key === 'Enter' && event.ctrlKey && isOpen.value;
-  const shouldToggle = event.key === 'F2';
   const shouldClose = event.key === 'Escape' && isOpen.value;
-  if ((!shouldExecute && !shouldToggle && !shouldClose) || event.repeat) {
+  if (!shouldClose || event.repeat) {
     return;
   }
   event.preventDefault();
   event.stopImmediatePropagation();
-  if (shouldExecute) {
-    const action = actions.value.find((candidate) => candidate.id === expandedActionId.value);
-    if (action) {
-      execute(action, event.shiftKey);
-    }
-    return;
+  openAfterActions = false;
+  setMenuOpen(false);
+}
+
+function toggleMenu(): boolean | void {
+  if (pickingCoordinate.value) {
+    return false;
   }
-  if (shouldClose || isOpen.value || openAfterActions) {
+  if (isOpen.value || openAfterActions) {
     openAfterActions = false;
     setMenuOpen(false);
   } else {
@@ -608,15 +607,39 @@ function handleMenuKeydown(event: KeyboardEvent): void {
   }
 }
 
+function handleExecuteShortcut(event: KeyboardEvent): void {
+  if (
+    event.key !== 'Enter' ||
+    !event.ctrlKey ||
+    event.altKey ||
+    event.metaKey ||
+    !isOpen.value ||
+    pickingCoordinate.value ||
+    event.repeat
+  ) {
+    return;
+  }
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  const action = actions.value.find((candidate) => candidate.id === expandedActionId.value);
+  if (action) {
+    execute(action, event.shiftKey);
+  }
+}
+
 onMounted(() => {
   unsubscribers.push(
-    selene.input.captureKeys('F2'),
+    selene.input.registerBinding(
+      { id: 'admin.toggle', label: 'Admin Menu', category: 'General', defaultBinding: 'F2', allowInText: true },
+      toggleMenu,
+    ),
     selene.network.onPayload('moonlight-admin:actions', receiveActions),
     selene.network.onPayload('moonlight-admin:result', receiveResult),
     selene.network.onPayload('moonlight-admin:registry-options', receiveRegistryOptions),
     selene.network.onPayload('moonlight-admin:target-options', receiveTargetOptions),
     selene.network.onConnected(requestActions),
   );
+  window.addEventListener('keydown', handleExecuteShortcut, true);
   window.addEventListener('keydown', handleMenuKeydown);
 });
 
@@ -627,6 +650,7 @@ onBeforeUnmount(() => {
   for (const unsubscribe of unsubscribers) {
     unsubscribe();
   }
+  window.removeEventListener('keydown', handleExecuteShortcut, true);
   window.removeEventListener('keydown', handleMenuKeydown);
 });
 </script>

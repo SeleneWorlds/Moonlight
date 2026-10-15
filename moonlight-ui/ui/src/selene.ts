@@ -31,6 +31,18 @@ export interface SeleneUiApi {
     setBundleVisible(bundle: string, visible: boolean): void;
   };
   readonly input: {
+    registerBinding(
+      definition: {
+        id: string;
+        label: string;
+        category?: string;
+        defaultBinding: string | null;
+        allowInText?: boolean;
+        allowShift?: boolean;
+      },
+      callback?: (event: KeyboardEvent) => boolean | void,
+    ): () => void;
+    matchesBinding(id: string, event: KeyboardEvent): boolean;
     captureKeys(...keys: string[]): () => void;
     captureText(): () => void;
     onScroll(callback: (event: { amountY: number }) => void): () => void;
@@ -86,6 +98,38 @@ export const useSelene = (): SeleneUiApi => {
     throw new Error('Selene API was not provided.');
   }
   return selene;
+};
+
+const createMockShortcuts = (): Pick<SeleneUiApi['input'], 'registerBinding' | 'matchesBinding'> => {
+  const shortcutMatchers = new Map<string, (event: KeyboardEvent) => boolean>();
+  return {
+    matchesBinding: (id, event) => shortcutMatchers.get(id)?.(event) ?? false,
+    registerBinding: (definition, callback) => {
+      const matches = (event: KeyboardEvent) => {
+        const parts = definition.defaultBinding?.split('+');
+        return (
+          !!parts &&
+          event.key.toLowerCase() === parts[parts.length - 1].toLowerCase() &&
+          event.ctrlKey === parts.includes('Ctrl') &&
+          event.altKey === parts.includes('Alt') &&
+          event.metaKey === parts.includes('Meta') &&
+          (definition.allowShift || event.shiftKey === parts.includes('Shift'))
+        );
+      };
+      shortcutMatchers.set(definition.id, matches);
+      const listener = (event: KeyboardEvent) => {
+        if (!event.repeat && matches(event) && callback && callback(event) !== false) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        }
+      };
+      window.addEventListener('keydown', listener, true);
+      return () => {
+        shortcutMatchers.delete(definition.id);
+        window.removeEventListener('keydown', listener, true);
+      };
+    },
+  };
 };
 
 export const createMockSeleneUiApi = (): SeleneUiApi => ({
@@ -164,6 +208,7 @@ export const createMockSeleneUiApi = (): SeleneUiApi => ({
     setBundleVisible: () => undefined,
   },
   input: {
+    ...createMockShortcuts(),
     captureKeys: () => () => undefined,
     captureText: () => () => undefined,
     onScroll: () => () => undefined,

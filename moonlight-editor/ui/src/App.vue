@@ -1123,6 +1123,26 @@ function startPicker(message: string): void {
   setStatus(message);
 }
 
+function handleSaveShortcut(event: KeyboardEvent): void {
+  if (
+    !(event.ctrlKey || event.metaKey) ||
+    event.altKey ||
+    event.shiftKey ||
+    event.key.toLowerCase() !== 's' ||
+    event.repeat ||
+    (!inlineForm.value && !visible.value)
+  ) {
+    return;
+  }
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  if (inlineForm.value) {
+    saveInlineForm();
+  } else if (!confirmation.value) {
+    save();
+  }
+}
+
 function handleKeyDown(event: KeyboardEvent): void {
   if (event.key === 'Escape' && ownsEscape(event)) {
     return;
@@ -1133,23 +1153,12 @@ function handleKeyDown(event: KeyboardEvent): void {
   } else if (inlineForm.value && event.key === 'Escape' && !event.repeat) {
     event.preventDefault();
     closeInlineForm();
-  } else if (inlineForm.value && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
-    event.preventDefault();
-    saveInlineForm();
   } else if (confirmation.value && event.key === 'Escape' && !event.repeat) {
     event.preventDefault();
     confirmation.value = null;
   } else if (visible.value && event.key === 'Escape' && !event.repeat) {
     event.preventDefault();
     setProjectVisible(false);
-  } else if (event.key === 'F1' && !event.repeat) {
-    event.preventDefault();
-    selene.network.sendToServer('moonlight-editor:toggle');
-  } else if (visible.value && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
-    event.preventDefault();
-    if (!confirmation.value) {
-      save();
-    }
   }
 }
 
@@ -1266,10 +1275,16 @@ function receiveFile(payload: ClientNetworkPayload): void {
 }
 
 onMounted(() => {
+  window.addEventListener('keydown', handleSaveShortcut, true);
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('resize', refreshInlinePosition);
   releases.push(
-    selene.input.captureKeys('F1'),
+    selene.input.registerBinding(
+      { id: 'editor.toggle', label: 'Toggle Editor', category: 'General', defaultBinding: 'F1', allowInText: true },
+      () => {
+        selene.network.sendToServer('moonlight-editor:toggle');
+      },
+    ),
     onEditorResponse('moonlight-editor:resource-path', (payload) => {
       if (typeof payload.path === 'string') {
         openFile(payload.path);
@@ -1663,6 +1678,7 @@ onBeforeUnmount(() => {
     selene.network.sendToServer('moonlight-editor:zoom-camera', { zoom: 1 });
   }
   closeInlineForm();
+  window.removeEventListener('keydown', handleSaveShortcut, true);
   window.removeEventListener('keydown', handleKeyDown);
   window.removeEventListener('resize', refreshInlinePosition);
   releaseTextCapture?.();

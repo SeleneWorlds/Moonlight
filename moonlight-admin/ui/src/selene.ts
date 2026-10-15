@@ -37,6 +37,18 @@ export interface SeleneUiApi {
     save(key: string, value: string): Promise<void>;
   };
   readonly input: {
+    registerBinding(
+      definition: {
+        id: string;
+        label: string;
+        category?: string;
+        defaultBinding: string | null;
+        allowInText?: boolean;
+        allowShift?: boolean;
+      },
+      callback?: (event: KeyboardEvent) => boolean | void,
+    ): () => void;
+    matchesBinding(id: string, event: KeyboardEvent): boolean;
     captureKeys(...keys: string[]): () => void;
     captureText(): () => void;
     passThroughKeys(...keys: string[]): () => void;
@@ -97,6 +109,7 @@ export interface VisualDefinition extends VisualFrameDefinition {
 }
 
 export const createMockSeleneUiApi = (): SeleneUiApi => {
+  const shortcutMatchers = new Map<string, (event: KeyboardEvent) => boolean>();
   const passthroughKeys = new Map<string, number>();
 
   return {
@@ -118,6 +131,32 @@ export const createMockSeleneUiApi = (): SeleneUiApi => {
       save: async (key, value) => window.localStorage.setItem(`selene.bundle.dev.${key}`, value),
     },
     input: {
+      matchesBinding: (id, event) => shortcutMatchers.get(id)?.(event) ?? false,
+      registerBinding: (definition, callback) => {
+        const matches = (event: KeyboardEvent) => {
+          const parts = definition.defaultBinding?.split('+');
+          return (
+            !!parts &&
+            event.key.toLowerCase() === parts[parts.length - 1].toLowerCase() &&
+            event.ctrlKey === parts.includes('Ctrl') &&
+            event.altKey === parts.includes('Alt') &&
+            event.metaKey === parts.includes('Meta') &&
+            (definition.allowShift || event.shiftKey === parts.includes('Shift'))
+          );
+        };
+        shortcutMatchers.set(definition.id, matches);
+        const listener = (event: KeyboardEvent) => {
+          if (!event.repeat && matches(event) && callback && callback(event) !== false) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }
+        };
+        window.addEventListener('keydown', listener, true);
+        return () => {
+          shortcutMatchers.delete(definition.id);
+          window.removeEventListener('keydown', listener, true);
+        };
+      },
       captureKeys: () => () => undefined,
       captureText: () => () => undefined,
       passThroughKeys: (...keys) => {
