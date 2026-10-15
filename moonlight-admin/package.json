@@ -17,8 +17,8 @@
     "moonlight-ui": "file:../moonlight-ui",
     "vue": "^3.5.13",
     "zod": "^4.6.5",
-    "selene-vue": "file:../../../sdk/selene-vue",
-    "selene": "file:../../../sdk/selene"
+    "selene-vue": "github:SeleneWorlds/Selene#main&path:/sdk/selene-vue",
+    "selene": "github:SeleneWorlds/Selene#11e318c90a397d0d0191bf9567e0dce97efceed4&path:/sdk/selene"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.4",
@@ -30,5 +30,6 @@
     "vite": "^6.3.5",
     "vue-eslint-parser": "^10.4.1",
     "vue-tsc": "^2.2.10"
-  }
+  },
+  "packageManager": "pnpm@11.5.2"
 }

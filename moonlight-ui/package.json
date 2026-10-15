@@ -18,7 +18,8 @@
     }
   },
   "dependencies": {
-    "selene-vue": "file:../../../sdk/selene-vue",
-    "selene": "file:../../../sdk/selene"
-  }
+    "selene-vue": "github:SeleneWorlds/Selene#main&path:/sdk/selene-vue",
+    "selene": "github:SeleneWorlds/Selene#11e318c90a397d0d0191bf9567e0dce97efceed4&path:/sdk/selene"
+  },
+  "packageManager": "pnpm@11.5.2"
 }
