@@ -359,6 +359,7 @@ function closeRegistry(name: string): void {
             field.name in parsed
           "
           type="button"
+          variant="ghost"
           @click="remove(field.name)"
         >
           Clear
