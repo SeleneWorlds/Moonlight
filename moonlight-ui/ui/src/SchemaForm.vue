@@ -367,7 +367,7 @@ function closeRegistry(name: string): void {
       />
       <ScriptedSchemaInput
         v-else-if="field.type === 'scripted_schema_lookup'"
-        :module="field.property ? String(parsed[field.property] ?? '') : ''"
+        :module="field.module ?? (field.property ? String(parsed[field.property] ?? '') : '')"
         :function-name="field.function"
         :contents="objectContents(field.name)"
         :registry-options="registryOptions"

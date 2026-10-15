@@ -21,6 +21,7 @@ export type SchemaDefinition =
       reference?: string;
       coordinate?: string;
       property?: string;
+      module?: string;
       function?: string;
       variants?: Record<string, SchemaDefinition>;
       properties?: Record<string, SchemaDefinition>;

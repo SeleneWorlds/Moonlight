@@ -90,4 +90,29 @@ assert(#replies == count and calls == 1)
 enabled = true
 handler({}, { requestId = "invalid", module = 42 })
 assert(#replies == count)
+-- Named schemas can use a fixed Lua provider, including inside arrays.
+definitions["test:behaviors"] = {
+    type = "scripted_schema_lookup", module = "test.behavior-defaults"
+}
+package.loaded["test.behavior-defaults"] = {
+    schema = function() return { actions = { type = "array", valueType = {
+        type = "object", properties = {
+            type = { type = "enum", values = { { value = "swap_item", label = "swap_item" } } },
+            data = { type = "schema_lookup", property = "type", variants = {
+                swap_item = { type = "object", properties = {
+                    position = "coordinate", oldItem = { type = "registry", registry = "illarion:items" }
+                } }
+            } }
+        }
+    } } } end
+}
+package.loaded["test.area-schema"] = { schema = function()
+    return { behaviors = { type = "array", optional = true, valueType = "test:behaviors" } }
+end }
+local behavior = request(nil, "test.area-schema").schema.behaviors.valueType
+assert(behavior.type == "scripted_schema_lookup" and behavior.module == "test.behavior-defaults")
+local action = request(nil, behavior.module).schema.actions.valueType.properties
+assert(action.type.values[1].value == "swap_item")
+assert(action.data.variants.swap_item.properties.position == "coordinate")
+assert(action.data.variants.swap_item.properties.oldItem.registry == "illarion:items")
 print("scripted schema regression tests passed")
