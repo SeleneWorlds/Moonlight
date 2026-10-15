@@ -1,5 +1,14 @@
 import type { Coordinate } from './selene';
 
+export function isRegistryValueReference(value: unknown): boolean {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    Object.prototype.hasOwnProperty.call(value, '$ref')
+  );
+}
+
 export interface DistancePick {
   field: string;
   coordinate: Coordinate;

@@ -3,7 +3,13 @@ import MoonlightButton from './MoonlightButton.vue';
 import MoonlightSwitch from './MoonlightSwitch.vue';
 import { computed, reactive, ref, watch } from 'vue';
 import { ExternalLink, Eye, Locate, Radius } from '@lucide/vue';
-import { resolveSchemaField, type DistancePick, type SchemaDefinition } from './schema';
+import {
+  defaultSchemaValue,
+  isRegistryValueReference,
+  resolveSchemaField,
+  type DistancePick,
+  type SchemaDefinition,
+} from './schema';
 import { useSelene, type Coordinate } from './selene';
 import RegistryVisual from './RegistryVisual.vue';
 import SchemaMap from './SchemaMap.vue';
@@ -17,6 +23,7 @@ import DirectionInput from './DirectionInput.vue';
 import ScriptedSchemaInput from './ScriptedSchemaInput.vue';
 import SelectInput from './SelectInput.vue';
 import RegistryFieldReferenceInput from './RegistryFieldReferenceInput.vue';
+import RegistryValueReferenceInput from './RegistryValueReferenceInput.vue';
 
 type JsonObject = Record<string, unknown>;
 type RegistryOption = { value: string; label: string; visual?: string };
@@ -30,6 +37,7 @@ const props = defineProps<{
   hideFieldLabels?: boolean;
   expandedFields?: string[];
   keepSelectionOpenOnShift?: boolean;
+  allowReferences?: boolean;
 }>();
 const emit = defineEmits<{
   updateContents: [contents: string, keepSelectionOpen?: boolean];
@@ -61,15 +69,29 @@ const fields = computed(() =>
         Number(['object', 'map', 'array', 'scripted_schema_lookup'].includes(b.type)),
     ),
 );
-function isNestedSection(field: { type: string; editor?: string }): boolean {
+function isNestedSection(field: { name: string; type: string; editor?: string }): boolean {
   return (
-    ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type) && field.editor !== 'moonlight:rolls'
+    !isRegistryValueReference(parsed.value?.[field.name]) &&
+    ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type) &&
+    field.editor !== 'moonlight:rolls'
   );
 }
 const nestedSectionCount = computed(() => fields.value.filter(isNestedSection).length);
 const openRegistryField = ref<string | null>(null);
 const registryQueries = reactive<Record<string, string>>({});
 const knownRegistryOptions = reactive<Record<string, Record<string, RegistryOption>>>({});
+const alternateValues = new Map<string, unknown>();
+
+function toggleReference(field: { name: string; type: string }): void {
+  const current = parsed.value?.[field.name];
+  const alternate = alternateValues.has(field.name)
+    ? alternateValues.get(field.name)
+    : isRegistryValueReference(current)
+      ? defaultSchemaValue(field)
+      : { $ref: { registry: '', entry: '' } };
+  alternateValues.set(field.name, current);
+  update(field.name, alternate);
+}
 
 watch(
   () => props.registryOptions,
@@ -291,11 +313,13 @@ function closeRegistry(name: string): void {
   <div v-if="parsed" class="schema-form moonlight-form">
     <component
       :is="
-        ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type) && field.editor !== 'moonlight:rolls'
-          ? 'details'
-          : field.editor === 'moonlight:rolls' || field.type === 'area'
-            ? 'div'
-            : 'label'
+        isRegistryValueReference(parsed[field.name])
+          ? 'div'
+          : isNestedSection(field)
+            ? 'details'
+            : field.editor === 'moonlight:rolls' || field.type === 'area'
+              ? 'div'
+              : 'label'
       "
       v-for="field in fields"
       :key="field.name"
@@ -316,19 +340,16 @@ function closeRegistry(name: string): void {
             field.optional ||
             ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type))
         "
-        :is="
-          ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type) &&
-          field.editor !== 'moonlight:rolls'
-            ? 'summary'
-            : 'span'
-        "
+        :is="isNestedSection(field) ? 'summary' : 'span'"
         class="heading moonlight-field-label"
       >
         <template
           v-if="!hideFieldLabels || ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type)"
           >{{ fieldLabels?.[field.name] ?? label(field.name) }}</template
         >
-        <span v-if="field.type === 'array'" class="array-item-count">({{ arrayItemCount(field.name) }} items)</span>
+        <span v-if="field.type === 'array' && !isRegistryValueReference(parsed[field.name])" class="array-item-count"
+          >({{ arrayItemCount(field.name) }} items)</span
+        >
         <small v-if="field.optional">optional</small>
         <MoonlightButton
           v-if="
@@ -343,8 +364,24 @@ function closeRegistry(name: string): void {
           Clear
         </MoonlightButton>
       </component>
+      <MoonlightButton
+        v-if="!readonly && allowReferences !== false && !isRegistryValueReference(parsed[field.name])"
+        type="button"
+        class="reference-toggle"
+        @click="toggleReference(field)"
+        >Use reference</MoonlightButton
+      >
+      <RegistryValueReferenceInput
+        v-if="isRegistryValueReference(parsed[field.name])"
+        :value="parsed[field.name]"
+        :readonly="readonly"
+        :registry-options="registryOptions"
+        @update-value="update(field.name, $event)"
+        @use-inline="toggleReference(field)"
+        @search-registry="(registry, query, lookup) => emit('searchRegistry', registry, query, lookup)"
+      />
       <RollsInput
-        v-if="field.editor === 'moonlight:rolls' && field.properties"
+        v-else-if="field.editor === 'moonlight:rolls' && field.properties"
         :schema="field.properties"
         :contents="objectContents(field.name)"
         :registry-options="registryOptions"
@@ -667,6 +704,11 @@ function closeRegistry(name: string): void {
 <style scoped>
 .field.coordinate {
   grid-column: 1 / -1;
+}
+.reference-toggle {
+  justify-self: start;
+  padding: 2px 6px;
+  font-size: 11px;
 }
 .nested-form {
   overflow: visible;

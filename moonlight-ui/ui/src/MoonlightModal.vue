@@ -13,7 +13,11 @@ defineExpose({
 <template>
   <dialog ref="element" class="moonlight-dialog" :aria-labelledby="titleId" @keydown.esc.stop>
     <form class="ml-stack ml-gap" @submit.prevent="emit('submit', $event)">
-      <h2 :id="titleId">{{ title }}</h2>
+      <div v-if="$slots.headerActions" class="modal-header">
+        <h2 :id="titleId">{{ title }}</h2>
+        <slot name="headerActions" />
+      </div>
+      <h2 v-else :id="titleId">{{ title }}</h2>
       <slot />
       <div v-if="$slots.actions" class="ml-row ml-end ml-gap">
         <slot name="actions" />
@@ -21,3 +25,16 @@ defineExpose({
     </form>
   </dialog>
 </template>
+
+<style scoped>
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.modal-header h2 {
+  margin: 0;
+}
+</style>

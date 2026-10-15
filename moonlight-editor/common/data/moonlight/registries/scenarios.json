@@ -3,6 +3,18 @@
   "platform": "server",
   "schema": {
     "name": "string",
-    "enabled": "enabled"
+    "enabled": "enabled",
+    "positions": {
+      "type": "map",
+      "keyType": "string",
+      "valueType": "coordinate",
+      "optional": true
+    },
+    "areas": {
+      "type": "map",
+      "keyType": "string",
+      "valueType": "area",
+      "optional": true
+    }
   }
 }
