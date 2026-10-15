@@ -82,4 +82,48 @@ for _, register in ipairs({ "registerAction", "registerCondition" }) do
     assert(not pcall(function() runner[register](runner, "bad", false) end))
     assert(not pcall(function() runner[register](runner, "bad", function() end, {}) end))
 end
+-- Built-in negation works on fresh instances and preserves callback arguments.
+local negation = Behaviors:new()
+local negateCalls = 0
+local expectedSubject
+negation:registerAction("record", function() negateCalls = negateCalls + 1 end)
+negation:registerCondition("value", function(condition, state, subject)
+    assert(state == context and subject == expectedSubject)
+    return condition.data
+end, "boolean")
+local function inverted(condition) return { type = "not", data = condition } end
+local function check(condition, expected, onAction)
+    local action = { type = "record" }
+    local behavior = { actions = { action } }
+    expectedSubject = onAction and action or behavior
+    expectedSubject.conditions = { condition }
+    negateCalls = 0
+    negation:run(behavior, context)
+    assert(negateCalls == expected)
+end
+for _, onAction in ipairs({ false, true }) do
+    check(inverted({type="value",data=true}), 0, onAction)
+    check(inverted({type="value",data=false}), 1, onAction)
+    check(inverted({type="value"}), 1, onAction)
+    check(inverted({type="value",data=0}), 0, onAction)
+    check(inverted(inverted({type="value",data=true})), 1, onAction)
+end
+assert(not pcall(negation.registerCondition, negation, "not", function() return true end))
+local cycle = inverted(nil)
+cycle.data = cycle
+for _, invalid in ipairs({ inverted(nil), inverted(false), inverted({}),
+    inverted({type="unknown"}), inverted(inverted({type="unknown"})), cycle }) do
+    negateCalls = 0
+    assert(not pcall(negation.emit, negation, "event", {
+        {event="event", actions={{type="record"}}},
+        {event="other", actions={}, conditions={invalid}}
+    }, context))
+    assert(negateCalls == 0, "Invalid nested conditions must fail before side effects")
+end
+local variants = negation:schema().properties.conditions.valueType.properties.data.variants
+assert(variants["not"].properties.data.variants.value == "boolean")
+assert(variants["not"].properties.data.variants["not"] == "any")
+variants["not"].properties.data.variants.value = "string"
+assert(negation:schema().properties.conditions.valueType.properties.data.variants["not"].properties.data.variants.value == "boolean")
+assert(Behaviors:new():schema().properties.conditions.valueType.properties.data.variants["not"])
 print("behaviors tests passed")

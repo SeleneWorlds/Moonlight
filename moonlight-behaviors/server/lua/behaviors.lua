@@ -16,7 +16,12 @@ local function array(value, label)
 end
 
 function Behaviors:new()
-    return setmetatable({ _actions = {}, _conditions = {}, _actionSchemas = {}, _conditionSchemas = {} }, self)
+    local instance = setmetatable({ _actions = {}, _conditions = {}, _actionSchemas = {}, _conditionSchemas = {} }, self)
+    instance._conditions["not"] = function(condition, context, subject)
+        local nested = condition.data
+        return not instance._conditions[nested.type](nested, context, subject)
+    end
+    return instance
 end
 
 local function register(handlers, schemas, kind, handler, schema)
@@ -34,6 +39,7 @@ function Behaviors:registerAction(kind, handler, schema)
 end
 
 function Behaviors:registerCondition(kind, handler, schema)
+    assert(kind ~= "not", "The built-in not condition cannot be replaced")
     register(self._conditions, self._conditionSchemas, kind, handler, schema)
     return self
 end
@@ -59,8 +65,12 @@ local function typedSchema(handlers, schemas, properties)
 end
 
 function Behaviors:schema()
-    local conditions = { type = "array", optional = true,
-        valueType = typedSchema(self._conditions, self._conditionSchemas, {}) }
+    local conditionSchema = typedSchema(self._conditions, self._conditionSchemas, {})
+    -- A finite schema exposes registered types inside not; further nested not
+    -- payloads use JSON controls rather than creating a cyclic schema table.
+    local nestedSchema = copy(conditionSchema)
+    conditionSchema.properties.data.variants["not"] = nestedSchema
+    local conditions = { type = "array", optional = true, valueType = conditionSchema }
     return { type = "object", properties = {
         event = { type = "string", optional = true },
         conditions = conditions,
@@ -70,13 +80,23 @@ function Behaviors:schema()
     } }
 end
 
+local function validateCondition(self, condition, visiting)
+    assert(type(condition) == "table", "Condition must be a typed table")
+    assert(not visiting[condition], "Conditions must not contain cycles")
+    name(condition.type, "Condition type")
+    assert(self._conditions[condition.type], "Unknown condition type: " .. condition.type)
+    if condition.type == "not" then
+        visiting[condition] = true
+        validateCondition(self, condition.data, visiting)
+        visiting[condition] = nil
+    end
+end
+
 local function validateConditions(self, conditions)
     if conditions == nil then return end
     array(conditions, "Conditions")
     for _, condition in ipairs(conditions) do
-        assert(type(condition) == "table", "Condition must be a typed table")
-        name(condition.type, "Condition type")
-        assert(self._conditions[condition.type], "Unknown condition type: " .. condition.type)
+        validateCondition(self, condition, {})
     end
 end
 
