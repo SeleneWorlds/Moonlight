@@ -16,7 +16,9 @@
     "@lucide/vue": "^1.52.0",
     "moonlight-ui": "file:../moonlight-ui",
     "vue": "^3.5.13",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "selene-vue": "file:../../../sdk/selene-vue",
+    "selene": "file:../../../sdk/selene"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.4",

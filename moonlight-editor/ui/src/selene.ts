@@ -1,2 +1,2 @@
-export * from 'moonlight-ui/selene';
+export * from 'selene-vue';
 export * from 'moonlight-ui/resourceOperations';
