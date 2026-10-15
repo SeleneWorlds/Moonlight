@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { Unlink, Link } from '@lucide/vue';
+import { ExternalLink, Unlink } from '@lucide/vue';
 import SchemaForm from './SchemaForm.vue';
 import MoonlightButton from './MoonlightButton.vue';
 import MoonlightModal from './MoonlightModal.vue';
@@ -11,6 +11,9 @@ import { requestEditorOperation } from './resourceOperations';
 const props = defineProps<{
   value: unknown;
   readonly?: boolean;
+  setupOnly?: boolean;
+  summaryOnly?: boolean;
+  canUnlink?: boolean;
   registryOptions: Record<string, Array<{ value: string; label: string; visual?: string }>>;
 }>();
 const emit = defineEmits<{
@@ -66,6 +69,22 @@ watch(
 const target = computed(() =>
   [reference.value.registry, reference.value.entry, reference.value.path].filter(Boolean).join(' · '),
 );
+const canOpen = computed(
+  () =>
+    typeof reference.value.registry === 'string' &&
+    reference.value.registry.trim() !== '' &&
+    typeof reference.value.entry === 'string' &&
+    reference.value.entry.trim() !== '',
+);
+function openTarget(): void {
+  if (!canOpen.value) {
+    return;
+  }
+  selene.network.sendToServer('moonlight-editor:open-registry-entry', {
+    registry: String(reference.value.registry),
+    value: String(reference.value.entry),
+  });
+}
 const schema = computed<Record<string, SchemaDefinition>>(() => ({
   registry: 'string',
   entry:
@@ -111,27 +130,30 @@ function useInline(): void {
   modal.value?.close();
   emit('useInline');
 }
+defineExpose({ configure });
 </script>
 
 <template>
-  <div class="value-reference">
-    <MoonlightButton
-      type="button"
-      size="icon"
-      :aria-label="readonly ? 'View reference' : 'Configure reference'"
-      :title="readonly ? 'View reference' : 'Configure reference'"
-      @click="configure"
-    >
-      <Link :size="16" aria-hidden="true" />
-    </MoonlightButton>
-    <span class="reference-summary" :title="target"
+  <div class="value-reference" :class="{ 'setup-only': setupOnly }">
+    <span v-if="!setupOnly" class="reference-summary" :title="target"
       >{{ targetName
       }}<template v-if="reference.path"
         >: <code>{{ reference.path }}</code></template
       ></span
     >
-    <MoonlightModal ref="modal" title="Field Reference" @submit="save">
-      <template v-if="!readonly" #headerActions>
+    <MoonlightButton
+      v-if="!setupOnly"
+      type="button"
+      size="icon"
+      variant="ghost"
+      :disabled="!canOpen"
+      :aria-label="`Open ${targetName}`"
+      title="Open referenced entry"
+      @click.stop="openTarget"
+      ><ExternalLink :size="14" aria-hidden="true"
+    /></MoonlightButton>
+    <MoonlightModal v-if="!summaryOnly" ref="modal" title="Field Reference" @submit="save">
+      <template v-if="!readonly && (!setupOnly || canUnlink)" #headerActions>
         <MoonlightButton type="button" @click="useInline"
           ><Unlink :size="18" aria-hidden="true" />Unlink</MoonlightButton
         >
@@ -160,6 +182,9 @@ function useInline(): void {
   align-items: center;
   gap: 8px;
   min-width: 0;
+}
+.setup-only {
+  display: contents;
 }
 .reference-summary {
   overflow: hidden;

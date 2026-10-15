@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import MoonlightButton from './MoonlightButton.vue';
 import MoonlightSwitch from './MoonlightSwitch.vue';
-import { computed, reactive, ref, watch } from 'vue';
-import { ExternalLink, Eye, Locate, Radius } from '@lucide/vue';
+import { computed, nextTick, reactive, ref, watch } from 'vue';
+import { ExternalLink, Eye, Link, Locate, Radius } from '@lucide/vue';
 import {
   defaultSchemaValue,
   isRegistryValueReference,
@@ -28,17 +28,20 @@ import RegistryValueReferenceInput from './RegistryValueReferenceInput.vue';
 type JsonObject = Record<string, unknown>;
 type RegistryOption = { value: string; label: string; visual?: string };
 
-const props = defineProps<{
-  readonly?: boolean;
-  schema: Record<string, SchemaDefinition>;
-  contents: string;
-  registryOptions: Record<string, RegistryOption[]>;
-  fieldLabels?: Record<string, string>;
-  hideFieldLabels?: boolean;
-  expandedFields?: string[];
-  keepSelectionOpenOnShift?: boolean;
-  allowReferences?: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    readonly?: boolean;
+    schema: Record<string, SchemaDefinition>;
+    contents: string;
+    registryOptions: Record<string, RegistryOption[]>;
+    fieldLabels?: Record<string, string>;
+    hideFieldLabels?: boolean;
+    expandedFields?: string[];
+    keepSelectionOpenOnShift?: boolean;
+    allowReferences?: boolean;
+  }>(),
+  { allowReferences: true },
+);
 const emit = defineEmits<{
   updateContents: [contents: string, keepSelectionOpen?: boolean];
   searchRegistry: [registry: string, query: string, lookup?: boolean];
@@ -81,6 +84,39 @@ const openRegistryField = ref<string | null>(null);
 const registryQueries = reactive<Record<string, string>>({});
 const knownRegistryOptions = reactive<Record<string, Record<string, RegistryOption>>>({});
 const alternateValues = new Map<string, unknown>();
+const referenceSetup = ref<InstanceType<typeof RegistryValueReferenceInput>>();
+const setupField = ref<string>();
+const setupValue = ref<unknown>();
+
+async function configureLink(field: { name: string }): Promise<void> {
+  setupField.value = field.name;
+  const current = parsed.value?.[field.name];
+  const previous = alternateValues.get(field.name);
+  setupValue.value = isRegistryValueReference(current)
+    ? current
+    : isRegistryValueReference(previous)
+      ? previous
+      : { $ref: { registry: '', entry: '' } };
+  await nextTick();
+  referenceSetup.value?.configure();
+}
+
+function saveLink(value: unknown): void {
+  if (!setupField.value) {
+    return;
+  }
+  if (!isRegistryValueReference(parsed.value?.[setupField.value])) {
+    alternateValues.set(setupField.value, parsed.value?.[setupField.value]);
+  }
+  update(setupField.value, value);
+}
+
+function unlinkSetup(): void {
+  const field = fields.value.find((field) => field.name === setupField.value);
+  if (field) {
+    toggleReference(field);
+  }
+}
 
 function toggleReference(field: { name: string; type: string }): void {
   const current = parsed.value?.[field.name];
@@ -312,15 +348,7 @@ function closeRegistry(name: string): void {
 <template>
   <div v-if="parsed" class="schema-form moonlight-form">
     <component
-      :is="
-        isRegistryValueReference(parsed[field.name])
-          ? 'div'
-          : isNestedSection(field)
-            ? 'details'
-            : field.editor === 'moonlight:rolls' || field.type === 'area'
-              ? 'div'
-              : 'label'
-      "
+      :is="isNestedSection(field) ? 'details' : 'div'"
       v-for="field in fields"
       :key="field.name"
       :open="
@@ -335,10 +363,11 @@ function closeRegistry(name: string): void {
     >
       <component
         v-if="
-          !['boolean', 'enabled'].includes(field.type) &&
-          (!hideFieldLabels ||
-            field.optional ||
-            ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type))
+          isRegistryValueReference(parsed[field.name]) ||
+          (!['boolean', 'enabled'].includes(field.type) &&
+            (!hideFieldLabels ||
+              field.optional ||
+              ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type)))
         "
         :is="isNestedSection(field) ? 'summary' : 'span'"
         class="heading moonlight-field-label"
@@ -364,19 +393,25 @@ function closeRegistry(name: string): void {
         >
           Clear
         </MoonlightButton>
+        <MoonlightButton
+          v-if="isRegistryValueReference(parsed[field.name]) || (!readonly && allowReferences !== false)"
+          type="button"
+          size="icon"
+          variant="ghost"
+          class="link-property"
+          :class="{ 'is-linked': isRegistryValueReference(parsed[field.name]) }"
+          :aria-label="`${isRegistryValueReference(parsed[field.name]) ? 'Edit link for' : 'Link'} ${fieldLabels?.[field.name] ?? label(field.name)}`"
+          :title="isRegistryValueReference(parsed[field.name]) ? 'Edit field reference' : 'Link property'"
+          @click.stop.prevent="configureLink(field)"
+          ><Link :size="14" aria-hidden="true"
+        /></MoonlightButton>
       </component>
-      <MoonlightButton
-        v-if="!readonly && allowReferences !== false && !isRegistryValueReference(parsed[field.name])"
-        type="button"
-        class="reference-toggle"
-        @click="toggleReference(field)"
-        >Use reference</MoonlightButton
-      >
       <RegistryValueReferenceInput
         v-if="isRegistryValueReference(parsed[field.name])"
         :value="parsed[field.name]"
         :readonly="readonly"
         :registry-options="registryOptions"
+        summary-only
         @update-value="update(field.name, $event)"
         @use-inline="toggleReference(field)"
         @search-registry="(registry, query, lookup) => emit('searchRegistry', registry, query, lookup)"
@@ -542,6 +577,17 @@ function closeRegistry(name: string): void {
         >
           <span v-if="!hideFieldLabels">{{ fieldLabels?.[field.name] ?? label(field.name) }}</span>
         </MoonlightSwitch>
+        <MoonlightButton
+          v-if="!readonly && allowReferences !== false"
+          class="link-property"
+          type="button"
+          size="icon"
+          variant="ghost"
+          :aria-label="`Link ${fieldLabels?.[field.name] ?? label(field.name)}`"
+          title="Link property"
+          @click.stop.prevent="configureLink(field)"
+          ><Link :size="14" aria-hidden="true"
+        /></MoonlightButton>
       </div>
       <RegistryFieldReferenceInput
         v-else-if="field.type === 'registry_field_reference'"
@@ -698,6 +744,18 @@ function closeRegistry(name: string): void {
         @input="update(field.name, ($event.target as HTMLInputElement).value)"
       />
     </component>
+    <RegistryValueReferenceInput
+      v-if="setupField !== undefined"
+      ref="referenceSetup"
+      :value="setupValue"
+      :registry-options="registryOptions"
+      setup-only
+      :readonly="readonly"
+      :can-unlink="isRegistryValueReference(parsed[setupField])"
+      @update-value="saveLink"
+      @use-inline="unlinkSetup"
+      @search-registry="(registry, query, lookup) => emit('searchRegistry', registry, query, lookup)"
+    />
   </div>
   <div v-else class="invalid">Fix the JSON in the Raw JSON tab before using the form.</div>
 </template>
@@ -706,10 +764,17 @@ function closeRegistry(name: string): void {
 .field.coordinate {
   grid-column: 1 / -1;
 }
-.reference-toggle {
-  justify-self: start;
-  padding: 2px 6px;
-  font-size: 11px;
+.link-property,
+.heading .link-property {
+  margin-left: auto;
+  padding: 2px;
+}
+.heading button + .link-property {
+  margin-left: 0;
+}
+.link-property.is-linked {
+  color: var(--moonlight-accent, #fb7185);
+  background: var(--moonlight-accent-soft, rgba(251, 113, 133, 0.14));
 }
 .nested-form {
   overflow: visible;
