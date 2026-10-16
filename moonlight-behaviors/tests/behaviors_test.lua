@@ -69,7 +69,8 @@ local payload = { type = "object", properties = { id = "string" } }
 runner:registerAction("debuff", function() end, payload)
 local schema = runner:schema()
 local action = schema.properties.actions.valueType.properties
-assert(action.type.values[1].value == "debuff" and action.type.values[2].value == "inform")
+assert(action.type.values[1].value == "branch" and action.type.values[2].value == "debuff"
+    and action.type.values[3].value == "inform")
 assert(action.data.variants.inform == "string")
 assert(action.conditions.valueType.properties.data.variants.debuffed == "boolean")
 action.data.variants.debuff.properties.id = "number"
