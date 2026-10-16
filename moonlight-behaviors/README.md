@@ -62,6 +62,24 @@ Action conditions run when that action is reached; a failed condition skips
 only that action. Earlier actions can change the shared context for later
 actions or behaviors. Actions run synchronously in array order.
 
+The built-in `branch` action evaluates `data.conditions` once and executes either
+`data.thenActions` or the optional `data.elseActions`. Missing or empty conditions
+select `thenActions`. Both paths are validated before any actions run; only the
+selected path executes, with the same context. Branches can nest, and their child
+actions retain normal per-action conditions. Changing state inside one path does
+not cause the other path to execute.
+
+```json
+{
+  "type": "branch",
+  "data": {
+    "conditions": [],
+    "thenActions": [],
+    "elseActions": []
+  }
+}
+```
+
 Action callbacks receive `(action, context, behavior)`. Condition callbacks
 receive `(condition, context, subject)`, where subject is the behavior or action
 carrying the condition. Both receive the complete data table, including any
@@ -83,7 +101,8 @@ unknown types. `run` validates before callbacks; `emit` validates the entire lis
 including nonmatching behaviors, before any callbacks. Payload validation belongs
 to consumers. Callback errors propagate and prior side effects are not rolled
 back. Do not modify definition structure or registrations during execution.
-Registering an existing type replaces its handler and optional schema.
+Registering an existing consumer-defined type replaces its handler and optional
+schema. Built-in `branch`, `not`, `all`, and `any` cannot be replaced.
 
 The bundle provides the shared `moonlight:behaviors` type in `selene:schemas`.
 Consumer registries can declare a field as

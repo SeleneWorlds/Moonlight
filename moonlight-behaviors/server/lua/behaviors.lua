@@ -15,6 +15,8 @@ local function array(value, label)
     for i = 1, count do assert(value[i] ~= nil, label .. " must be a dense array") end
 end
 
+local matches
+
 function Behaviors:new()
     local instance = setmetatable({ _actions = {}, _conditions = {}, _actionSchemas = {}, _conditionSchemas = {} }, self)
     instance._conditions["not"] = function(condition, context, subject)
@@ -33,6 +35,16 @@ function Behaviors:new()
         end
         return false
     end
+    instance._actions.branch = function(action, context)
+        local payload = action.data
+        local actions
+        if matches(instance, payload.conditions, context, action) then
+            actions = payload.thenActions
+        else
+            actions = payload.elseActions or {}
+        end
+        return instance:run({ actions = actions }, context)
+    end
     return instance
 end
 
@@ -46,6 +58,7 @@ local function register(handlers, schemas, kind, handler, schema)
 end
 
 function Behaviors:registerAction(kind, handler, schema)
+    assert(kind ~= "branch", "The built-in branch action cannot be replaced")
     register(self._actions, self._actionSchemas, kind, handler, schema)
     return self
 end
@@ -86,12 +99,24 @@ function Behaviors:schema()
     conditionSchema.properties.data.variants.all = { type = "array", valueType = copy(nestedSchema) }
     conditionSchema.properties.data.variants.any = { type = "array", valueType = copy(nestedSchema) }
     local conditions = { type = "array", optional = true, valueType = conditionSchema }
+    local actions = { type = "array", valueType = typedSchema(self._actions, self._actionSchemas, {
+        conditions = copy(conditions)
+    }) }
+    -- Keep recursive branches finite in the editor, as with grouped conditions.
+    if self._actionSchemas.branch == nil then
+        local nestedActions = copy(actions)
+        local elseActions = copy(nestedActions)
+        elseActions.optional = true
+        actions.valueType.properties.data.variants.branch = { type = "object", properties = {
+            conditions = copy(conditions),
+            thenActions = nestedActions,
+            elseActions = elseActions
+        } }
+    end
     return { type = "object", properties = {
         event = { type = "string", optional = true },
         conditions = conditions,
-        actions = { type = "array", valueType = typedSchema(self._actions, self._actionSchemas, {
-            conditions = copy(conditions)
-        }) }
+        actions = actions
     } }
 end
 
@@ -123,8 +148,10 @@ local function validateConditions(self, conditions)
 end
 
 -- Check every action before any callback can produce side effects.
-function Behaviors:validate(definition)
+local function validateDefinition(self, definition, visiting)
     assert(type(definition) == "table", "Behavior must be a table")
+    assert(not visiting[definition], "Branches must not contain cycles")
+    visiting[definition] = true
     if definition.event ~= nil then name(definition.event, "Event") end
     validateConditions(self, definition.conditions)
     array(definition.actions, "Actions")
@@ -133,11 +160,27 @@ function Behaviors:validate(definition)
         name(action.type, "Action type")
         assert(self._actions[action.type], "Unknown action type: " .. action.type)
         validateConditions(self, action.conditions)
+        if action.type == "branch" then
+            assert(type(action.data) == "table", "Branch payload must be a table")
+            assert(not visiting[action], "Branches must not contain cycles")
+            visiting[action] = true
+            validateConditions(self, action.data.conditions)
+            validateDefinition(self, { actions = action.data.thenActions }, visiting)
+            if action.data.elseActions ~= nil then
+                validateDefinition(self, { actions = action.data.elseActions }, visiting)
+            end
+            visiting[action] = nil
+        end
     end
+    visiting[definition] = nil
     return true
 end
 
-local function matches(self, conditions, context, subject)
+function Behaviors:validate(definition)
+    return validateDefinition(self, definition, {})
+end
+
+matches = function(self, conditions, context, subject)
     for _, condition in ipairs(conditions or {}) do
         if not self._conditions[condition.type](condition, context, subject) then return false end
     end
