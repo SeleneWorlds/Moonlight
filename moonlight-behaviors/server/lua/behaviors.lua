@@ -21,6 +21,18 @@ function Behaviors:new()
         local nested = condition.data
         return not instance._conditions[nested.type](nested, context, subject)
     end
+    instance._conditions.all = function(condition, context, subject)
+        for _, nested in ipairs(condition.data) do
+            if not instance._conditions[nested.type](nested, context, subject) then return false end
+        end
+        return true
+    end
+    instance._conditions.any = function(condition, context, subject)
+        for _, nested in ipairs(condition.data) do
+            if instance._conditions[nested.type](nested, context, subject) then return true end
+        end
+        return false
+    end
     return instance
 end
 
@@ -39,7 +51,8 @@ function Behaviors:registerAction(kind, handler, schema)
 end
 
 function Behaviors:registerCondition(kind, handler, schema)
-    assert(kind ~= "not", "The built-in not condition cannot be replaced")
+    assert(kind ~= "not" and kind ~= "all" and kind ~= "any",
+        "Built-in conditions cannot be replaced")
     register(self._conditions, self._conditionSchemas, kind, handler, schema)
     return self
 end
@@ -66,10 +79,12 @@ end
 
 function Behaviors:schema()
     local conditionSchema = typedSchema(self._conditions, self._conditionSchemas, {})
-    -- A finite schema exposes registered types inside not; further nested not
-    -- payloads use JSON controls rather than creating a cyclic schema table.
+    -- Expose one level of nested conditions; deeper groups use JSON controls
+    -- to keep the schema finite.
     local nestedSchema = copy(conditionSchema)
     conditionSchema.properties.data.variants["not"] = nestedSchema
+    conditionSchema.properties.data.variants.all = { type = "array", valueType = copy(nestedSchema) }
+    conditionSchema.properties.data.variants.any = { type = "array", valueType = copy(nestedSchema) }
     local conditions = { type = "array", optional = true, valueType = conditionSchema }
     return { type = "object", properties = {
         event = { type = "string", optional = true },
@@ -85,9 +100,16 @@ local function validateCondition(self, condition, visiting)
     assert(not visiting[condition], "Conditions must not contain cycles")
     name(condition.type, "Condition type")
     assert(self._conditions[condition.type], "Unknown condition type: " .. condition.type)
-    if condition.type == "not" then
+    if condition.type == "not" or condition.type == "all" or condition.type == "any" then
         visiting[condition] = true
-        validateCondition(self, condition.data, visiting)
+        if condition.type == "not" then
+            validateCondition(self, condition.data, visiting)
+        else
+            array(condition.data, "Grouped conditions")
+            for _, nested in ipairs(condition.data) do
+                validateCondition(self, nested, visiting)
+            end
+        end
         visiting[condition] = nil
     end
 end

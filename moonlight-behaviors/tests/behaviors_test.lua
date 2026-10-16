@@ -126,4 +126,38 @@ assert(variants["not"].properties.data.variants["not"] == "any")
 variants["not"].properties.data.variants.value = "string"
 assert(negation:schema().properties.conditions.valueType.properties.data.variants["not"].properties.data.variants.value == "boolean")
 assert(Behaviors:new():schema().properties.conditions.valueType.properties.data.variants["not"])
+-- Logical groups work at both behavior and action level and short-circuit.
+negation:registerCondition("never", function() error("Group did not short-circuit") end)
+for _, onAction in ipairs({false, true}) do
+    check({type="all", data={}}, 1, onAction)
+    check({type="any", data={}}, 0, onAction)
+    check({type="all", data={{type="value",data=true}, {type="value",data=false}}}, 0, onAction)
+    check({type="any", data={{type="value",data=false}, {type="value",data=true}}}, 1, onAction)
+    check({type="all", data={{type="value",data=false}, {type="never"}}}, 0, onAction)
+    check({type="any", data={{type="value",data=true}, {type="never"}}}, 1, onAction)
+    check(inverted({type="all", data={{type="any",data={{type="value",data=false}}}}}), 1, onAction)
+end
+for _, kind in ipairs({"all", "any"}) do
+    assert(not pcall(negation.registerCondition, negation, kind, function() end))
+    local cyclic = {type=kind, data={}}
+    cyclic.data[1] = inverted(cyclic)
+    for _, invalid in ipairs({
+        {type=kind}, {type=kind,data=false}, {type=kind,data={false}},
+        {type=kind,data={[2]={type="value"}}}, {type=kind,data={extra={type="value"}}},
+        {type=kind,data={{type="unknown"}}}, cyclic,
+        {type=kind,data={{type="value",data=kind=="any"}, {type="unknown"}}}
+    }) do
+        negateCalls = 0
+        assert(not pcall(negation.emit, negation, "event", {
+            {event="event",actions={{type="record"}}},
+            {event="other",actions={{type="record",conditions={invalid}}}}
+        }, context))
+        assert(negateCalls == 0)
+    end
+    local group = negation:schema().properties.conditions.valueType.properties.data.variants[kind]
+    assert(group.type == "array" and group.valueType.properties.data.variants.value == "boolean")
+    assert(group.valueType.properties.data.variants[kind] == "any")
+    group.valueType.properties.data.variants.value = "string"
+    assert(negation:schema().properties.conditions.valueType.properties.data.variants[kind].valueType.properties.data.variants.value == "boolean")
+end
 print("behaviors tests passed")
