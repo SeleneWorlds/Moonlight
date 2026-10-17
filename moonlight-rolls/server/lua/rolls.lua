@@ -92,6 +92,11 @@ function Rolls:schema()
         pools = { type = "array", valueType = { type = "object", properties = {
             name = { type = "string", optional = true },
             rolls = { type = "integer", min = 0, optional = true },
+            strategy = { type = "enum", optional = true, values = {
+                { value = "basic", label = "basic" },
+                { value = "deduplicate_skip", label = "deduplicate_skip" },
+                { value = "deduplicate_reroll", label = "deduplicate_reroll" }
+            } },
             conditions = copy(conditions),
             entries = { type = "array", valueType = entry }
         } } }
@@ -118,6 +123,9 @@ function Rolls:validate(definition)
     for _, pool in ipairs(definition.pools) do
         assert(type(pool) == "table", "Pool must be a table")
         validateConditions(self, pool.conditions)
+        assert(pool.strategy == nil or pool.strategy == "basic"
+            or pool.strategy == "deduplicate_skip" or pool.strategy == "deduplicate_reroll",
+            "Unknown pool strategy: " .. tostring(pool.strategy))
         local count = pool.rolls == nil and 1 or pool.rolls
         assert(finite(count) and count >= 0 and count % 1 == 0, "Pool rolls must be a non-negative integer")
         array(pool.entries, "Entries")
@@ -156,12 +164,15 @@ function Rolls:roll(definition, context)
     for poolIndex, pool in ipairs(definition.pools) do
         local count = pool.rolls == nil and 1 or pool.rolls
         if count > 0 and matches(self, pool.conditions, context, pool) then
+            local selectedEntries = {}
+            local strategy = pool.strategy or "basic"
             for rollIndex = 1, count do
                 -- Re-evaluate eligibility so earlier handlers can update the context.
                 local eligible, total = {}, 0
                 for _, entry in ipairs(pool.entries) do
                     local weight = entry.weight == nil and 1 or entry.weight
-                    if weight > 0 and matches(self, entry.conditions, context, entry) then
+                    if weight > 0 and (strategy ~= "deduplicate_reroll" or not selectedEntries[entry])
+                        and matches(self, entry.conditions, context, entry) then
                         total = total + weight
                         eligible[#eligible + 1] = { entry = entry, upper = total }
                     end
@@ -176,11 +187,14 @@ function Rolls:roll(definition, context)
                     for _, candidate in ipairs(eligible) do
                         if target < candidate.upper then selected = candidate.entry; break end
                     end
-                    local value = self._handlers[selected.type](selected, context)
-                    results[#results + 1] = {
-                        entry = selected, value = value,
-                        poolIndex = poolIndex, rollIndex = rollIndex
-                    }
+                    if strategy == "basic" or not selectedEntries[selected] then
+                        selectedEntries[selected] = true
+                        local value = self._handlers[selected.type](selected, context)
+                        results[#results + 1] = {
+                            entry = selected, value = value,
+                            poolIndex = poolIndex, rollIndex = rollIndex
+                        }
+                    end
                 end
             end
         end

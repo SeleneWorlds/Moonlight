@@ -111,6 +111,24 @@
                   }
                 }
               }
+            },
+            "strategy": {
+              "type": "enum",
+              "optional": true,
+              "values": [
+                {
+                  "value": "basic",
+                  "label": "basic"
+                },
+                {
+                  "value": "deduplicate_skip",
+                  "label": "deduplicate_skip"
+                },
+                {
+                  "value": "deduplicate_reroll",
+                  "label": "deduplicate_reroll"
+                }
+              ]
             }
           }
         }

@@ -57,9 +57,18 @@ Definitions contain an ordered `pools` array. Each pool contains an `entries`
 array and an optional non-negative integer `rolls` (default `1`). Each draw
 selects one eligible entry with probability `weight / totalEligibleWeight`.
 Weights default to `1`, may be fractional, and must be finite and non-negative.
-Zero-weight entries are never selected. Draws use replacement; an entry may be
-selected repeatedly. Empty pools or pools without eligible positive weights
-produce no results and consume no randomness.
+Zero-weight entries are never selected. Pools accept an optional `strategy`:
+
+- `basic` (default): draws use replacement and execute every selection.
+- `deduplicate_skip`: draws use replacement, but repeated selections consume a
+  draw without executing the handler or returning a result.
+- `deduplicate_reroll`: selected entries are excluded from subsequent draws,
+  retaining relative weights among remaining eligible entries. Stops producing
+  results when no eligible entries remain; no retry loop is used.
+
+Deduplication uses entry table identity and resets for each pool and invocation.
+Empty pools or pools without eligible positive weights produce no results and
+consume no randomness.
 
 Definitions, pools, and entries may each have a `conditions` array. All conditions
 must pass; an empty or absent array passes. A condition can be a Lua function

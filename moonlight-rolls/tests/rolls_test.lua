@@ -133,4 +133,73 @@ for _, invalidSchema in ipairs({ false, 4, {}, { type = 4 }, "" }) do
     assert(not pcall(function() editor:registerType("bad", function() end, invalidSchema) end))
     assert(not pcall(function() editor:registerCondition("bad", function() end, invalidSchema) end))
 end
+-- Strategies deduplicate per pool and per invocation, preserving weighted draws.
+local function strategyRoll(strategy, samples, entries, count)
+    local draws, calls = 0, 0
+    local instance = Rolls:new({ random = function()
+        draws = draws + 1
+        return assert(samples[draws], "Unexpected extra draw")
+    end })
+    instance:registerType("value", function(entry)
+        calls = calls + 1
+        return entry.value
+    end)
+    local pool = { strategy = strategy, rolls = count or 4, entries = entries or { a, b } }
+    local results = instance:roll({ pools = { pool } })
+    assert(calls == #results)
+    return results, draws, instance, pool
+end
+local repeated = { 0, 0.1, 0.8, 0.9 }
+for _, strategy in ipairs({ "basic", "deduplicate_skip", "deduplicate_reroll" }) do
+    local results, draws = strategyRoll(strategy, repeated)
+    if strategy == "basic" then
+        assert(#results == 4 and draws == 4)
+    elseif strategy == "deduplicate_skip" then
+        assert(#results == 2 and draws == 4)
+        assert(results[1].entry == a and results[1].rollIndex == 1)
+        assert(results[2].entry == b and results[2].rollIndex == 3)
+    else
+        assert(#results == 2 and draws == 2)
+        assert(results[1].entry == a and results[2].entry == b)
+    end
+end
+local _, _, unique, uniquePool = strategyRoll("deduplicate_skip", {0,0,0,0})
+-- A new pool or invocation gets its own selection history.
+unique._random = function() return 0 end
+assert(#unique:roll({pools={uniquePool, uniquePool}}) == 2)
+assert(#unique:roll({pools={uniquePool}}) == 1)
+for _, strategy in ipairs({ "deduplicate_skip", "deduplicate_reroll" }) do
+    local results, draws = strategyRoll(strategy, {}, {}, 4)
+    assert(#results == 0 and draws == 0)
+    results, draws = strategyRoll(strategy, {}, {{type="value",weight=0}}, 4)
+    assert(#results == 0 and draws == 0)
+    -- Entry identity, not payload equality, determines duplicates.
+    results, draws = strategyRoll(strategy, {0,0.9}, {
+        {type="value",value="same"}, {type="value",value="same"}
+    }, 2)
+    assert(#results == 2 and draws == 2)
+end
+-- Reroll retains relative weights among remaining entries.
+local c = {type="value",weight=2,value="c"}
+local results = strategyRoll("deduplicate_reroll", {0,0.32}, {a,b,c}, 2)
+assert(results[1].entry == a and results[2].entry == b)
+results = strategyRoll("deduplicate_reroll", {0,0.34}, {a,b,c}, 2)
+assert(results[2].entry == c)
+-- Context changes still affect later eligibility with either deduplication strategy.
+for _, strategy in ipairs({"deduplicate_skip", "deduplicate_reroll"}) do
+    local state = {remaining=1,calls=0}
+    conditioned.conditions = nil
+    conditioned.pools[2].strategy = strategy
+    local results = dynamic:roll(conditioned, state)
+    assert(#results == 3 and state.remaining == 0 and state.calls == 2)
+end
+for _, strategy in ipairs({false, 1, "unique", ""}) do
+    invalid({pools={{strategy=strategy,entries={a}}}})
+end
+local strategySchema = fixed:schema().properties.pools.valueType.properties.strategy
+assert(strategySchema.optional and #strategySchema.values == 3)
+assert(strategySchema.values[1].value == "basic")
+assert(strategySchema.values[2].value == "deduplicate_skip")
+assert(strategySchema.values[3].value == "deduplicate_reroll")
+
 print("moonlight-rolls tests passed")
