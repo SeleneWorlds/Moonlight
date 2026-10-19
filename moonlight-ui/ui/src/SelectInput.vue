@@ -232,6 +232,9 @@ svg {
   overflow-wrap: anywhere;
   min-width: 0;
 }
+[role='option'][aria-selected='true']:not(:last-child) {
+  margin-bottom: 4px;
+}
 [role='option'].active,
 [aria-selected='true'] {
   background: rgba(251, 113, 133, 0.14);
