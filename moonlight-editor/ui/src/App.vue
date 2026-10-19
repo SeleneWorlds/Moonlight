@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import MoonlightSurface from 'moonlight-ui/MoonlightSurface.vue';
 import MoonlightButton from 'moonlight-ui/MoonlightButton.vue';
+import MoonlightModal from 'moonlight-ui/MoonlightModal.vue';
 import { ownsEscape } from 'moonlight-ui/keyboard';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Focus, Database, ArrowDown, ArrowUp, Grid2X2, Eye, Lightbulb, X } from '@lucide/vue';
@@ -145,19 +146,19 @@ const inlineForm = ref<{
 const inlinePicking = ref(false);
 const inlineSaving = ref(false);
 const inlineMessage = ref('');
-const inlinePosition = computed(() => {
-  void projectionRevision.value;
-  const point = inlineForm.value ? selene.world.projectCoordinate(inlineForm.value.coordinate) : { x: 0, y: 0 };
-  const width = Math.min(560, window.innerWidth - 16);
-  const top = Math.max(8, Math.min(point.y, window.innerHeight - 320));
-  return {
-    width: `${width}px`,
-    left: `${Math.max(8, Math.min(point.x + 20, window.innerWidth - width - 8))}px`,
-    top: `${top}px`,
-    maxHeight: `${window.innerHeight - top - 8}px`,
-  };
-});
-function refreshInlinePosition(): void {
+const inlineDialog = ref<InstanceType<typeof MoonlightModal> | null>(null);
+watch(
+  [inlineDialog, inlinePicking],
+  ([dialog, picking]) => {
+    if (picking) {
+      dialog?.close();
+    } else {
+      dialog?.showModal();
+    }
+  },
+  { flush: 'post' },
+);
+function refreshWorldProjection(): void {
   projectionRevision.value += 1;
 }
 function closeInlineForm(): void {
@@ -1277,7 +1278,7 @@ function receiveFile(payload: ClientNetworkPayload): void {
 onMounted(() => {
   window.addEventListener('keydown', handleSaveShortcut, true);
   window.addEventListener('keydown', handleKeyDown);
-  window.addEventListener('resize', refreshInlinePosition);
+  window.addEventListener('resize', refreshWorldProjection);
   releases.push(
     selene.input.registerBinding(
       { id: 'editor.toggle', label: 'Toggle Editor', category: 'General', defaultBinding: 'F1', allowInText: true },
@@ -1680,7 +1681,7 @@ onBeforeUnmount(() => {
   closeInlineForm();
   window.removeEventListener('keydown', handleSaveShortcut, true);
   window.removeEventListener('keydown', handleKeyDown);
-  window.removeEventListener('resize', refreshInlinePosition);
+  window.removeEventListener('resize', refreshWorldProjection);
   releaseTextCapture?.();
   releasePanelKeys?.();
   releasePickerKeys?.();
@@ -1803,26 +1804,22 @@ onBeforeUnmount(() => {
     <strong>{{ pickingDistance.field }}: {{ pickingDistance.distance }} tiles</strong>
     <MoonlightButton type="button" @click="finishCoordinatePicker()">Cancel</MoonlightButton>
   </MoonlightSurface>
-  <MoonlightSurface
-    as="section"
-    variant="panel"
+  <MoonlightModal
     v-if="inlineForm"
-    v-show="!inlinePicking && inlineForm.coordinate.z === cameraCoordinate.z"
     :key="inlineForm.id"
-    class="inline-modal moonlight-panel ml-floating"
-    :style="inlinePosition"
-    role="dialog"
-    :aria-label="inlineForm.title"
+    ref="inlineDialog"
+    :title="inlineForm.title"
+    @cancel.prevent="closeInlineForm"
+    @submit="saveInlineForm"
     @pointerdown.stop
     @pointerup.stop
     @click.stop
   >
-    <header>
-      <strong>{{ inlineForm.title }}</strong>
+    <template #headerActions>
       <MoonlightButton variant="ghost" size="icon" type="button" aria-label="Close" @click="closeInlineForm">
         <X :size="18" aria-hidden="true" />
       </MoonlightButton>
-    </header>
+    </template>
     <SchemaForm
       class="moonlight-form-scroll"
       :schema="inlineForm.schema"
@@ -1834,13 +1831,13 @@ onBeforeUnmount(() => {
       @pick-coordinate="startCoordinatePicker"
       @pick-distance="startDistancePicker"
     />
-    <footer>
-      <span role="status">{{ inlineMessage }}</span
-      ><MoonlightButton type="button" :disabled="inlineSaving" @click="saveInlineForm">
+    <template #actions>
+      <span role="status">{{ inlineMessage }}</span>
+      <MoonlightButton type="submit" :disabled="inlineSaving">
         {{ inlineSaving ? 'Applying…' : 'Apply' }}
       </MoonlightButton>
-    </footer>
-  </MoonlightSurface>
+    </template>
+  </MoonlightModal>
   <FileModal
     v-if="enabled"
     v-show="visible"
