@@ -5,7 +5,7 @@ import MoonlightSurface from 'moonlight-ui/MoonlightSurface.vue';
 import MoonlightButton from 'moonlight-ui/MoonlightButton.vue';
 import { ownsEscape } from 'moonlight-ui/keyboard';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, useTemplateRef } from 'vue';
-import { ChevronDown, Star, X } from '@lucide/vue';
+import { ChevronDown, Locate, Star, X } from '@lucide/vue';
 import { z } from 'zod';
 import { useSelene, type ClientNetworkPayload, type Coordinate } from './selene';
 import RegistryVisual from 'moonlight-ui/RegistryVisual.vue';
@@ -893,9 +893,11 @@ onBeforeUnmount(() => {
                   <MoonlightButton
                     type="button"
                     class="pick-coordinate"
+                    :aria-label="`Pick ${parameter.label} from world`"
+                    title="Pick coordinate from world"
                     @click="startCoordinatePicker(action, parameter.name)"
                   >
-                    📌
+                    <Locate :size="16" aria-hidden="true" />
                   </MoonlightButton>
                 </div>
                 <div v-else class="select ml-relative">
