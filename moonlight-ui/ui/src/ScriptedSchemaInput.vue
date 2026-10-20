@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, useId, watch } from 'vue';
+import { onUnmounted, ref, watch } from 'vue';
 import type { DistancePick, SchemaDefinition } from './schema';
 import { useSelene } from './selene';
+import { fetchScriptSchema } from './scriptSchemas';
 import SchemaForm from './SchemaForm.vue';
+import BehaviorInput from './BehaviorInput.vue';
+import { computed } from 'vue';
 
 const props = withDefaults(
   defineProps<{
@@ -22,49 +25,31 @@ const emit = defineEmits<{
   pickDistance: [pick: DistancePick];
 }>();
 const selene = useSelene();
-const id = useId();
 let generation = 0;
-let requestId = '';
 const schema = ref<Record<string, SchemaDefinition>>({});
+const isBehavior = computed(() => Boolean(schema.value.event && schema.value.conditions && schema.value.actions));
 const message = ref('');
 const loading = ref(false);
-const disposers: Array<() => void> = [];
-
-function requestSchema(): void {
-  requestId = `${id}:${++generation}`;
+async function requestSchema(): Promise<void> {
+  const current = ++generation;
   schema.value = {};
   message.value = '';
   loading.value = Boolean(props.module);
-  if (props.module) {
-    selene.network.sendToServer('moonlight-editor:request-scripted-schema', {
-      requestId,
-      module: props.module,
-      functionName: props.functionName ?? 'schema',
-    });
+  if (!props.module) return;
+  try {
+    const result = await fetchScriptSchema(selene.http, props.module, props.functionName);
+    if (current !== generation) return;
+    schema.value = result;
+  } catch (error) {
+    if (current === generation) message.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    if (current === generation) loading.value = false;
   }
 }
-
-onMounted(() => {
-  disposers.push(
-    selene.network.onPayload('moonlight-editor:scripted-schema', (payload) => {
-      if (payload.requestId !== requestId) {
-        return;
-      }
-      loading.value = false;
-      if (typeof payload.message === 'string') {
-        message.value = payload.message;
-      } else if (payload.schema && typeof payload.schema === 'object' && !Array.isArray(payload.schema)) {
-        schema.value = payload.schema as Record<string, SchemaDefinition>;
-      } else {
-        message.value = 'Schema provider must return a schema object.';
-      }
-    }),
-  );
-  disposers.push(selene.network.onConnected(requestSchema));
-  requestSchema();
+watch(() => [props.module, props.functionName], requestSchema, { immediate: true });
+onUnmounted(() => {
+  generation++;
 });
-watch(() => [props.module, props.functionName], requestSchema);
-onUnmounted(() => disposers.forEach((dispose) => dispose()));
 </script>
 
 <template>
@@ -72,7 +57,8 @@ onUnmounted(() => disposers.forEach((dispose) => dispose()));
     <p v-if="loading">Loading script fields…</p>
     <p v-else-if="message" role="alert">{{ message }}</p>
     <p v-else-if="!module">Select a script to edit its fields.</p>
-    <SchemaForm
+    <component
+      :is="isBehavior ? BehaviorInput : SchemaForm"
       :allow-references="allowReferences"
       v-else
       :schema="schema"

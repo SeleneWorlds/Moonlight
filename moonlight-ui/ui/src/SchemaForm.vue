@@ -17,6 +17,7 @@ import { useSelene, type Coordinate } from './selene';
 import RegistryVisual from './RegistryVisual.vue';
 import SchemaMap from './SchemaMap.vue';
 import RollsInput from './RollsInput.vue';
+import BehaviorInput from './BehaviorInput.vue';
 import SchemaArray from './SchemaArray.vue';
 import JsonInput from './JsonInput.vue';
 import ScriptInput from './ScriptInput.vue';
@@ -435,6 +436,18 @@ function closeRegistry(name: string): void {
         @update-value="update(field.name, $event)"
         @use-inline="toggleReference(field)"
         @search-registry="(registry, query, lookup) => emit('searchRegistry', registry, query, lookup)"
+      />
+      <BehaviorInput
+        v-else-if="field.editor === 'moonlight:behavior' && field.properties"
+        :schema="field.properties"
+        :contents="objectContents(field.name)"
+        :registry-options="registryOptions"
+        :readonly="readonly"
+        :allow-references="allowReferences"
+        @update-contents="updateObject(field.name, $event)"
+        @search-registry="(registry, query, lookup) => emit('searchRegistry', registry, query, lookup)"
+        @pick-coordinate="emit('pickCoordinate', `${field.name}.${$event}`)"
+        @pick-distance="emit('pickDistance', { ...$event, field: `${field.name}.${$event.field}` })"
       />
       <RollsInput
         :allow-references="allowReferences"

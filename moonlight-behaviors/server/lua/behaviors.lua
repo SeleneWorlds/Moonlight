@@ -113,7 +113,7 @@ function Behaviors:schema()
             elseActions = elseActions
         } }
     end
-    return { type = "object", properties = {
+    return { type = "object", editor = "moonlight:behavior", properties = {
         event = { type = "string", optional = true },
         conditions = conditions,
         actions = actions

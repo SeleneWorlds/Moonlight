@@ -442,30 +442,32 @@ local function resolveSchema(definition, resolving)
     return resolved
 end
 
+function Editor.scriptedSchema(module, functionName)
+    if module == "" then return {} end
+    local script = require(module)
+    local callback = script[functionName or "schema"]
+    assert(type(callback) == "function", "Schema provider must be a function.")
+    local result = callback()
+    assert(type(result) == "table", "Schema provider must return a schema object.")
+    for name, definition in pairs(result) do
+        assert(type(name) == "string", "Schema properties must have string names.")
+        assert(type(definition) == "string"
+            or (type(definition) == "table" and type(definition.type) == "string"),
+            "Schema properties must be type names or property definitions.")
+    end
+    local resolved = {}
+    for name, definition in pairs(result) do resolved[name] = resolveSchema(definition, {}) end
+    result = resolved
+    -- Verify serialization here so failures can be reported to the requesting form.
+    Json.encode(result)
+    return result
+end
+
 Network.handlePayload("moonlight-editor:request-scripted-schema", function(player, payload)
     if not Editor.isEnabled(player) or type(payload) ~= "table"
         or type(payload.requestId) ~= "string" or type(payload.module) ~= "string"
         or (payload.functionName ~= nil and type(payload.functionName) ~= "string") then return end
-    local ok, schema = pcall(function()
-        if payload.module == "" then return {} end
-        local script = require(payload.module)
-        local callback = script[payload.functionName or "schema"]
-        assert(type(callback) == "function", "Schema provider must be a function.")
-        local result = callback()
-        assert(type(result) == "table", "Schema provider must return a schema object.")
-        for name, definition in pairs(result) do
-            assert(type(name) == "string", "Schema properties must have string names.")
-            assert(type(definition) == "string"
-                or (type(definition) == "table" and type(definition.type) == "string"),
-                "Schema properties must be type names or property definitions.")
-        end
-        local resolved = {}
-        for name, definition in pairs(result) do resolved[name] = resolveSchema(definition, {}) end
-        result = resolved
-        -- Verify serialization here so failures can be reported to the requesting form.
-        Json.encode(result)
-        return result
-    end)
+    local ok, schema = pcall(Editor.scriptedSchema, payload.module, payload.functionName)
     Network.sendToPlayer(player, "moonlight-editor:scripted-schema", {
         requestId = payload.requestId,
         schema = ok and schema or nil,

@@ -115,4 +115,22 @@ local action = request(nil, behavior.module).schema.actions.valueType.properties
 assert(action.type.values[1].value == "swap_item")
 assert(action.data.variants.swap_item.properties.position == "coordinate")
 assert(action.data.variants.swap_item.properties.oldItem.registry == "illarion:items")
+-- Load the real provider to guard against eager nested schema expansion.
+package.loaded["selene.dimensions"] = {}
+package.loaded["illarion-script-loader.server.lua.lib.inventoryManager"] = {}
+package.loaded["moonlight-behaviors.server.lua.behaviors"] = dofile("../moonlight-behaviors/server/lua/behaviors.lua")
+package.loaded["moonlight-rolls.server.lua.rolls"] = dofile("../moonlight-rolls/server/lua/rolls.lua")
+local defaults = dofile("../../illarion-script-loader/server/lua/lib/behaviorDefaults.lua")
+local schema = defaults.schema()
+local nodes = 0
+local function countNodes(value)
+    nodes = nodes + 1
+    if type(value) == "table" then for _, child in pairs(value) do countNodes(child) end end
+end
+countNodes(schema)
+assert(nodes < 10000, "Behavior schema expanded eagerly: " .. nodes)
+local variants = schema.actions.valueType.properties.data.variants
+assert(variants.schedule.properties.actions.valueType.type == "scripted_schema_lookup")
+assert(variants.transform_item.properties.onSuccess.valueType["function"] == "actionSchema")
+assert(defaults.actionSchema().type.type == "enum")
 print("scripted schema regression tests passed")

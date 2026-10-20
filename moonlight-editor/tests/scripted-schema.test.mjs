@@ -33,3 +33,31 @@ test('payload controls follow the sibling type and preserve optional clearing', 
   }
   assert.equal(resolveSchemaField('string', {}), 'string');
 });
+
+test('script schemas use HTTP for large replies and propagate fetch failures', async () => {
+  const { fetchScriptSchema } = await import('../../moonlight-ui/ui/src/scriptSchemas.ts');
+  const schema = { event: { type: 'enum', values: [{ value: 'enter', label: 'x'.repeat(100000) }] } };
+  const http = {
+    request: async (path, body, method) => {
+      assert.equal(path, '/scripts/schema');
+      assert.equal(method, 'GET');
+      assert.deepEqual(body, { module: 'test.provider', functionName: 'custom' });
+      return schema;
+    },
+  };
+  assert.equal(await fetchScriptSchema(http, 'test.provider', 'custom'), schema);
+  await assert.rejects(
+    fetchScriptSchema(
+      {
+        request: async () => {
+          throw new Error('Access denied');
+        },
+      },
+      'test',
+    ),
+    /Access denied/,
+  );
+  for (const result of [null, [], 'invalid']) {
+    await assert.rejects(fetchScriptSchema({ request: async () => result }, 'test'), /schema object/);
+  }
+});
