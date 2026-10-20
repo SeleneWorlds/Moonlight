@@ -4,12 +4,16 @@ import { computed } from 'vue';
 import { defaultSchemaValue, type DistancePick, type SchemaDefinition } from './schema';
 import SchemaForm from './SchemaForm.vue';
 
-const props = defineProps<{
-  readonly?: boolean;
-  valueType: SchemaDefinition;
-  contents: string;
-  registryOptions: Record<string, Array<{ value: string; label: string; visual?: string }>>;
-}>();
+const props = withDefaults(
+  defineProps<{
+    readonly?: boolean;
+    allowReferences?: boolean;
+    valueType: SchemaDefinition;
+    contents: string;
+    registryOptions: Record<string, Array<{ value: string; label: string; visual?: string }>>;
+  }>(),
+  { allowReferences: true },
+);
 const emit = defineEmits<{
   updateContents: [contents: string];
   searchRegistry: [registry: string, query: string, lookup?: boolean];
@@ -57,6 +61,7 @@ function add(): void {
         </MoonlightButton>
       </div>
       <SchemaForm
+        :allow-references="allowReferences"
         :schema="{ value: valueType }"
         :contents="JSON.stringify({ value })"
         :registry-options="registryOptions"

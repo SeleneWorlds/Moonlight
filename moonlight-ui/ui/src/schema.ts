@@ -34,6 +34,7 @@ export type SchemaDefinition =
       function?: string;
       variants?: Record<string, SchemaDefinition>;
       properties?: Record<string, SchemaDefinition>;
+      additionalProperties?: SchemaDefinition;
       keyType?: SchemaDefinition;
       valueType?: SchemaDefinition;
     };
@@ -86,5 +87,28 @@ export function resolveSchemaField(definition: SchemaDefinition, contents: Recor
   return {
     optional: definition.optional,
     ...(typeof variant === 'string' ? { type: variant } : variant),
+  };
+}
+
+// Keep declared properties separate from editable custom entries in the same object.
+export function additionalSchemaValues(
+  contents: Record<string, unknown>,
+  properties: Record<string, SchemaDefinition>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(contents).filter(([key]) => !Object.prototype.hasOwnProperty.call(properties, key)),
+  );
+}
+
+export function mergeAdditionalSchemaValues(
+  contents: Record<string, unknown>,
+  properties: Record<string, SchemaDefinition>,
+  additional: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    ...additionalSchemaValues(additional, properties),
+    ...Object.fromEntries(
+      Object.entries(contents).filter(([key]) => Object.prototype.hasOwnProperty.call(properties, key)),
+    ),
   };
 }

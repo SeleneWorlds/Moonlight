@@ -208,3 +208,48 @@ test('shared modals space content and actions and preserve native dialog behavio
   assert.equal(element.open, false);
   app.unmount();
 });
+
+test('scalar sliders share bounds with numeric entry and clamp edits without changing the value shape', () => {
+  for (const maximum of [255, 999]) {
+    const updates = [];
+    const { element, app } = mount('SliderInput', {
+      minimum: 0,
+      maximum,
+      value: 33,
+      label: 'Item value',
+      onUpdate: (value) => updates.push(value),
+    });
+    const slider = element.children[0].children[0];
+    const number = element.children[1];
+    for (const input of [slider, number]) {
+      assert.equal(input.props.min, 0);
+      assert.equal(input.props.max, maximum);
+      assert.equal(input.props.value, 33);
+    }
+    slider.props.onInput({ target: { value: '42', valueAsNumber: 42 } });
+    number.props.onChange({ target: { value: '9999', valueAsNumber: 9999 } });
+    number.props.onChange({ target: { value: '-1', valueAsNumber: -1 } });
+    number.props.onChange({ target: { value: '', valueAsNumber: NaN } });
+    assert.deepEqual(updates, [42, maximum, 0]);
+    app.unmount();
+  }
+});
+
+test('readonly scalar sliders disable dragging and ignore numeric edits', () => {
+  const updates = [];
+  const { element, app } = mount('SliderInput', {
+    minimum: 0,
+    maximum: 255,
+    value: 33,
+    label: 'Wear',
+    readonly: true,
+    onUpdate: (value) => updates.push(value),
+  });
+  const slider = element.children[0].children[0];
+  const number = element.children[1];
+  assert.equal(slider.props.disabled, true);
+  assert.equal(number.props.readonly, true);
+  number.props.onChange({ target: { value: '42', valueAsNumber: 42 } });
+  assert.deepEqual(updates, []);
+  app.unmount();
+});

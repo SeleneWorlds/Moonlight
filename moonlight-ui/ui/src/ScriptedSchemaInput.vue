@@ -4,13 +4,17 @@ import type { DistancePick, SchemaDefinition } from './schema';
 import { useSelene } from './selene';
 import SchemaForm from './SchemaForm.vue';
 
-const props = defineProps<{
-  module: string;
-  functionName?: string;
-  contents: string;
-  registryOptions: Record<string, Array<{ value: string; label: string; visual?: string }>>;
-  readonly?: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    module: string;
+    functionName?: string;
+    contents: string;
+    registryOptions: Record<string, Array<{ value: string; label: string; visual?: string }>>;
+    readonly?: boolean;
+    allowReferences?: boolean;
+  }>(),
+  { allowReferences: true },
+);
 const emit = defineEmits<{
   updateContents: [contents: string];
   searchRegistry: [registry: string, query: string, lookup?: boolean];
@@ -69,6 +73,7 @@ onUnmounted(() => disposers.forEach((dispose) => dispose()));
     <p v-else-if="message" role="alert">{{ message }}</p>
     <p v-else-if="!module">Select a script to edit its fields.</p>
     <SchemaForm
+      :allow-references="allowReferences"
       v-else
       :schema="schema"
       :contents="contents"

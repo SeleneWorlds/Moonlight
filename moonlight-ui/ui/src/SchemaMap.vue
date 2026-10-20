@@ -9,13 +9,18 @@ import RegistryVisual from './RegistryVisual.vue';
 
 type RegistryOption = { value: string; label: string; visual?: string };
 
-const props = defineProps<{
-  readonly?: boolean;
-  keyType: SchemaDefinition;
-  valueType: SchemaDefinition;
-  contents: string;
-  registryOptions: Record<string, Array<{ value: string; label: string; visual?: string }>>;
-}>();
+const props = withDefaults(
+  defineProps<{
+    readonly?: boolean;
+    allowReferences?: boolean;
+    keyType: SchemaDefinition;
+    reservedKeys?: string[];
+    valueType: SchemaDefinition;
+    contents: string;
+    registryOptions: Record<string, Array<{ value: string; label: string; visual?: string }>>;
+  }>(),
+  { allowReferences: true },
+);
 const emit = defineEmits<{
   updateContents: [contents: string];
   searchRegistry: [registry: string, query: string, lookup?: boolean];
@@ -76,14 +81,24 @@ const tableValue = computed(() => {
       ({ value }) => value === null || ['string', 'number', 'boolean'].includes(typeof value),
     );
   }
-  return ['string', 'integer', 'number', 'boolean', 'enabled', 'range', 'distance', 'registry', 'script', 'Direction'].includes(
-    type,
-  );
+  return [
+    'string',
+    'integer',
+    'number',
+    'boolean',
+    'enabled',
+    'range',
+    'distance',
+    'registry',
+    'script',
+    'Direction',
+  ].includes(type);
 });
 const inlineProperties = computed(() => {
   const definition = props.valueType;
   return typeof definition !== 'string' &&
     definition.type === 'object' &&
+    !definition.additionalProperties &&
     definition.properties &&
     Object.keys(definition.properties).length <= 3
     ? definition.properties
@@ -94,19 +109,26 @@ const selectedKey = computed(() => {
   const key: unknown = JSON.parse(draft.value).key;
   return typeof key === 'string' || typeof key === 'number' ? String(key) : '';
 });
-const duplicate = computed(() => Object.prototype.hasOwnProperty.call(entries.value, selectedKey.value));
+const duplicate = computed(() => !availableKey(selectedKey.value));
 const addOnSelection = computed(
   () => !!keyRegistry.value || (typeof props.keyType !== 'string' && props.keyType.type === 'enum'),
 );
 const draftFormKey = ref(0);
 function availableKey(value: unknown): boolean {
-  return !Object.prototype.hasOwnProperty.call(entries.value, String(value));
+  return (
+    !props.reservedKeys?.includes(String(value)) && !Object.prototype.hasOwnProperty.call(entries.value, String(value))
+  );
 }
-const availableKeyType = computed(() =>
-  typeof props.keyType !== 'string' && props.keyType.type === 'enum'
-    ? { ...props.keyType, values: props.keyType.values?.filter((option) => availableKey(option.value)) }
-    : props.keyType,
-);
+const availableKeyType = computed(() => {
+  const definition = typeof props.keyType === 'string' ? { type: props.keyType } : props.keyType;
+  return {
+    ...definition,
+    optional: true,
+    ...(definition.type === 'enum'
+      ? { values: definition.values?.filter((option) => availableKey(option.value)) }
+      : {}),
+  };
+});
 const availableKeyRegistryOptions = computed(() => {
   const registry = keyRegistry.value;
   if (!registry) {
@@ -236,6 +258,7 @@ function valueLabel(value: unknown): string {
           </th>
           <td class="entry-value">
             <SchemaForm
+              :allow-references="allowReferences"
               class="value-form"
               hide-field-labels
               :schema="{ value: valueType }"
@@ -323,6 +346,7 @@ function valueLabel(value: unknown): string {
           </div>
         </div>
         <SchemaForm
+          :allow-references="allowReferences"
           v-if="inlineProperties"
           class="inline-value"
           :schema="inlineProperties"
@@ -335,6 +359,7 @@ function valueLabel(value: unknown): string {
           @pick-distance="emit('pickDistance', { ...$event, field: `${key}.${$event.field}` })"
         />
         <SchemaForm
+          :allow-references="allowReferences"
           v-else
           :schema="{ value: valueType }"
           :field-labels="{ value: valueLabel(value) }"
@@ -355,6 +380,7 @@ function valueLabel(value: unknown): string {
     </template>
     <div v-if="!readonly" class="add-entry">
       <SchemaForm
+        :allow-references="allowReferences"
         :key="addOnSelection ? draftFormKey : contents"
         :keep-selection-open-on-shift="addOnSelection"
         :hide-field-labels="tableValue"
@@ -463,7 +489,12 @@ function valueLabel(value: unknown): string {
 .add-entry {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  align-items: end;
+  gap: 12px;
+}
+
+.add-entry > .schema-form {
+  padding: 0;
 }
 
 .action-buttons > .moonlight-button {

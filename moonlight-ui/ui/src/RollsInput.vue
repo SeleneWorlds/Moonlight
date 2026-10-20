@@ -6,12 +6,16 @@ import SchemaForm from './SchemaForm.vue';
 import RegistryVisual from './RegistryVisual.vue';
 import { resolveSchemaField, defaultSchemaValue, type SchemaDefinition, type DistancePick } from './schema';
 type Obj = Record<string, unknown>;
-const props = defineProps<{
-  schema: Record<string, SchemaDefinition>;
-  contents: string;
-  registryOptions: Record<string, Array<{ value: string; label: string; visual?: string }>>;
-  readonly?: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    schema: Record<string, SchemaDefinition>;
+    contents: string;
+    registryOptions: Record<string, Array<{ value: string; label: string; visual?: string }>>;
+    readonly?: boolean;
+    allowReferences?: boolean;
+  }>(),
+  { allowReferences: true },
+);
 const emit = defineEmits<{
   updateContents: [contents: string];
   searchRegistry: [registry: string, query: string, lookup?: boolean];
@@ -285,6 +289,7 @@ function settings(schema: Record<string, SchemaDefinition>, exclude: string): Re
         </header>
         <section v-if="selected && selection">
           <SchemaForm
+            :allow-references="allowReferences"
             class="detail"
             :schema="entrySchema"
             :contents="JSON.stringify(selected)"
@@ -306,6 +311,7 @@ function settings(schema: Record<string, SchemaDefinition>, exclude: string): Re
 
         <section v-else-if="settingsTarget === 'rolls'">
           <SchemaForm
+            :allow-references="allowReferences"
             class="detail"
             :schema="settings(schema, 'pools')"
             :contents="contents"
@@ -319,6 +325,7 @@ function settings(schema: Record<string, SchemaDefinition>, exclude: string): Re
         </section>
         <section v-else-if="typeof settingsTarget === 'number' && pools[settingsTarget]">
           <SchemaForm
+            :allow-references="allowReferences"
             class="detail"
             :schema="settings(poolSchema, 'entries')"
             :contents="JSON.stringify(pools[settingsTarget])"

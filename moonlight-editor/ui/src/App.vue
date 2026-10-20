@@ -1394,6 +1394,7 @@ onMounted(() => {
       inlineSaving.value = false;
       inlineMessage.value = typeof payload.message === 'string' ? payload.message : '';
       if (payload.success === true) {
+        closeInlineForm();
         requestGizmos();
       }
     }),
@@ -1823,6 +1824,7 @@ onBeforeUnmount(() => {
     <SchemaForm
       class="moonlight-form-scroll"
       :schema="inlineForm.schema"
+      :allow-references="false"
       :field-labels="inlineForm.fieldLabels"
       :contents="inlineForm.contents"
       :registry-options="registryOptions"

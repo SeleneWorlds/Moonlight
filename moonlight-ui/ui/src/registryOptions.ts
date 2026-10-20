@@ -31,6 +31,6 @@ export function parseRegistryOptions(registry: string, options: unknown[]): Regi
               : registry === 'entities' || registry === 'selene:entities'
                 ? value
                 : undefined;
-    return [{ value, label, ...(typeof visual === 'string' ? { visual } : {}) }];
+    return [{ value, label: label.trim() ? label : value, ...(typeof visual === 'string' ? { visual } : {}) }];
   });
 }

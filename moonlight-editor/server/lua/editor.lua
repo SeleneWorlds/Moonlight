@@ -436,7 +436,7 @@ local function resolveSchema(definition, resolving)
         for key, value in pairs(resolved.variants) do variants[key] = resolveSchema(value, resolving) end
         resolved.variants = variants
     end
-    for _, key in ipairs({ "valueType", "keyType" }) do
+    for _, key in ipairs({ "valueType", "keyType", "additionalProperties" }) do
         if resolved[key] then resolved[key] = resolveSchema(resolved[key], resolving) end
     end
     return resolved

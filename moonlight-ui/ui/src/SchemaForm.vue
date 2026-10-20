@@ -5,6 +5,8 @@ import MoonlightSwitch from './MoonlightSwitch.vue';
 import { computed, nextTick, reactive, ref, watch } from 'vue';
 import { ExternalLink, Eye, Link, Locate, Radius } from '@lucide/vue';
 import {
+  additionalSchemaValues,
+  mergeAdditionalSchemaValues,
   defaultSchemaValue,
   isRegistryValueReference,
   resolveSchemaField,
@@ -19,6 +21,7 @@ import SchemaArray from './SchemaArray.vue';
 import JsonInput from './JsonInput.vue';
 import ScriptInput from './ScriptInput.vue';
 import RangeInput from './RangeInput.vue';
+import SliderInput from './SliderInput.vue';
 import AreaInput from './AreaInput.vue';
 import DirectionInput from './DirectionInput.vue';
 import ScriptedSchemaInput from './ScriptedSchemaInput.vue';
@@ -33,6 +36,7 @@ const props = withDefaults(
   defineProps<{
     readonly?: boolean;
     schema: Record<string, SchemaDefinition>;
+    additionalProperties?: SchemaDefinition;
     contents: string;
     registryOptions: Record<string, RegistryOption[]>;
     fieldLabels?: Record<string, string>;
@@ -51,6 +55,10 @@ const emit = defineEmits<{
 }>();
 
 const selene = useSelene();
+
+function isFieldReference(value: unknown): boolean {
+  return props.allowReferences !== false && isRegistryValueReference(value);
+}
 
 const parsed = computed(() => {
   try {
@@ -75,7 +83,7 @@ const fields = computed(() =>
 );
 function isNestedSection(field: { name: string; type: string; editor?: string }): boolean {
   return (
-    !isRegistryValueReference(parsed.value?.[field.name]) &&
+    !isFieldReference(parsed.value?.[field.name]) &&
     ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type) &&
     field.editor !== 'moonlight:rolls'
   );
@@ -93,9 +101,9 @@ async function configureLink(field: { name: string }): Promise<void> {
   setupField.value = field.name;
   const current = parsed.value?.[field.name];
   const previous = alternateValues.get(field.name);
-  setupValue.value = isRegistryValueReference(current)
+  setupValue.value = isFieldReference(current)
     ? current
-    : isRegistryValueReference(previous)
+    : isFieldReference(previous)
       ? previous
       : { $ref: { registry: '', entry: '' } };
   await nextTick();
@@ -106,7 +114,7 @@ function saveLink(value: unknown): void {
   if (!setupField.value) {
     return;
   }
-  if (!isRegistryValueReference(parsed.value?.[setupField.value])) {
+  if (!isFieldReference(parsed.value?.[setupField.value])) {
     alternateValues.set(setupField.value, parsed.value?.[setupField.value]);
   }
   update(setupField.value, value);
@@ -123,7 +131,7 @@ function toggleReference(field: { name: string; type: string }): void {
   const current = parsed.value?.[field.name];
   const alternate = alternateValues.has(field.name)
     ? alternateValues.get(field.name)
-    : isRegistryValueReference(current)
+    : isFieldReference(current)
       ? defaultSchemaValue(field)
       : { $ref: { registry: '', entry: '' } };
   alternateValues.set(field.name, current);
@@ -200,6 +208,16 @@ function objectContents(name: string): string {
 
 function updateObject(name: string, contents: string): void {
   update(name, JSON.parse(contents));
+}
+
+const additionalContents = computed(() => JSON.stringify(additionalSchemaValues(parsed.value ?? {}, props.schema)));
+
+function updateAdditional(contents: string): void {
+  if (props.readonly || !parsed.value) return;
+  emit(
+    'updateContents',
+    `${JSON.stringify(mergeAdditionalSchemaValues(parsed.value, props.schema, JSON.parse(contents)), null, 2)}\n`,
+  );
 }
 
 function arrayContents(name: string): string {
@@ -357,6 +375,7 @@ function closeRegistry(name: string): void {
       "
       class="field moonlight-field"
       :class="{
+        'ml-span-all': field.type === 'string',
         coordinate: ['coordinate', 'range', 'object', 'map', 'array', 'scripted_schema_lookup', 'any'].includes(
           field.type,
         ),
@@ -364,7 +383,7 @@ function closeRegistry(name: string): void {
     >
       <component
         v-if="
-          isRegistryValueReference(parsed[field.name]) ||
+          isFieldReference(parsed[field.name]) ||
           (!['boolean', 'enabled'].includes(field.type) &&
             (!hideFieldLabels ||
               field.optional ||
@@ -377,7 +396,7 @@ function closeRegistry(name: string): void {
           v-if="!hideFieldLabels || ['object', 'map', 'array', 'scripted_schema_lookup'].includes(field.type)"
           >{{ fieldLabels?.[field.name] ?? label(field.name) }}</template
         >
-        <span v-if="field.type === 'array' && !isRegistryValueReference(parsed[field.name])" class="array-item-count"
+        <span v-if="field.type === 'array' && !isFieldReference(parsed[field.name])" class="array-item-count"
           >({{ arrayItemCount(field.name) }} items)</span
         >
         <small v-if="field.optional">optional</small>
@@ -395,20 +414,20 @@ function closeRegistry(name: string): void {
           Clear
         </MoonlightButton>
         <MoonlightButton
-          v-if="isRegistryValueReference(parsed[field.name]) || (!readonly && allowReferences !== false)"
+          v-if="isFieldReference(parsed[field.name]) || (!readonly && allowReferences !== false)"
           type="button"
           size="icon"
           variant="ghost"
           class="link-property"
-          :class="{ 'is-linked': isRegistryValueReference(parsed[field.name]) }"
-          :aria-label="`${isRegistryValueReference(parsed[field.name]) ? 'Edit link for' : 'Link'} ${fieldLabels?.[field.name] ?? label(field.name)}`"
-          :title="isRegistryValueReference(parsed[field.name]) ? 'Edit field reference' : 'Link property'"
+          :class="{ 'is-linked': isFieldReference(parsed[field.name]) }"
+          :aria-label="`${isFieldReference(parsed[field.name]) ? 'Edit link for' : 'Link'} ${fieldLabels?.[field.name] ?? label(field.name)}`"
+          :title="isFieldReference(parsed[field.name]) ? 'Edit field reference' : 'Link property'"
           @click.stop.prevent="configureLink(field)"
           ><Link :size="14" aria-hidden="true"
         /></MoonlightButton>
       </component>
       <RegistryValueReferenceInput
-        v-if="isRegistryValueReference(parsed[field.name])"
+        v-if="isFieldReference(parsed[field.name])"
         :value="parsed[field.name]"
         :readonly="readonly"
         :registry-options="registryOptions"
@@ -418,6 +437,7 @@ function closeRegistry(name: string): void {
         @search-registry="(registry, query, lookup) => emit('searchRegistry', registry, query, lookup)"
       />
       <RollsInput
+        :allow-references="allowReferences"
         v-else-if="field.editor === 'moonlight:rolls' && field.properties"
         :schema="field.properties"
         :contents="objectContents(field.name)"
@@ -440,6 +460,7 @@ function closeRegistry(name: string): void {
         @update-value="update(field.name, $event)"
       />
       <ScriptedSchemaInput
+        :allow-references="allowReferences"
         v-else-if="field.type === 'scripted_schema_lookup'"
         :module="field.module ?? (field.property ? String(parsed[field.property] ?? '') : '')"
         :function-name="field.function"
@@ -457,6 +478,7 @@ function closeRegistry(name: string): void {
         "
       />
       <SchemaMap
+        :allow-references="allowReferences"
         v-else-if="field.type === 'map' && field.keyType && field.valueType"
         :key-type="field.keyType"
         :value-type="field.valueType"
@@ -474,6 +496,7 @@ function closeRegistry(name: string): void {
         "
       />
       <SchemaArray
+        :allow-references="allowReferences"
         v-else-if="field.type === 'array' && field.valueType"
         :value-type="field.valueType"
         :contents="arrayContents(field.name)"
@@ -496,9 +519,11 @@ function closeRegistry(name: string): void {
         @update-value="update(field.name, $event)"
       />
       <SchemaForm
-        v-else-if="field.type === 'object' && field.properties"
+        :allow-references="allowReferences"
+        v-else-if="field.type === 'object' && (field.properties || field.additionalProperties)"
         class="nested-form"
-        :schema="field.properties"
+        :schema="field.properties ?? {}"
+        :additional-properties="field.additionalProperties"
         :contents="objectContents(field.name)"
         :registry-options="registryOptions"
         :readonly="readonly"
@@ -543,6 +568,21 @@ function closeRegistry(name: string): void {
         :readonly="readonly"
         @select="update(field.name, $event)"
       />
+      <SliderInput
+        v-else-if="
+          ['integer', 'number'].includes(field.type) &&
+          field.editor === 'slider' &&
+          field.min !== undefined &&
+          field.max !== undefined
+        "
+        :value="parsed[field.name] as number | undefined"
+        :minimum="field.min"
+        :maximum="field.max"
+        :label="fieldLabels?.[field.name] ?? label(field.name)"
+        :required="!field.optional"
+        :readonly="readonly"
+        @update="update(field.name, $event)"
+      />
       <input
         class="moonlight-input"
         :readonly="readonly"
@@ -550,6 +590,8 @@ function closeRegistry(name: string): void {
         :value="parsed[field.name] as number | undefined"
         type="number"
         :step="field.type === 'number' ? 'any' : 1"
+        :min="field.min"
+        :max="field.max"
         :required="!field.optional"
         @input="numberValue(field.name, $event)"
       />
@@ -746,6 +788,22 @@ function closeRegistry(name: string): void {
         @input="update(field.name, ($event.target as HTMLInputElement).value)"
       />
     </component>
+    <div v-if="additionalProperties" class="additional-fields">
+      <span class="moonlight-field-label">Additional fields</span>
+      <SchemaMap
+        :allow-references="allowReferences"
+        key-type="string"
+        :value-type="additionalProperties"
+        :reserved-keys="Object.keys(schema)"
+        :contents="additionalContents"
+        :registry-options="registryOptions"
+        :readonly="readonly"
+        @update-contents="updateAdditional"
+        @search-registry="(registry, query, lookup) => emit('searchRegistry', registry, query, lookup)"
+        @pick-coordinate="emit('pickCoordinate', $event)"
+        @pick-distance="emit('pickDistance', $event)"
+      />
+    </div>
     <RegistryValueReferenceInput
       v-if="setupField !== undefined"
       ref="referenceSetup"
@@ -753,7 +811,7 @@ function closeRegistry(name: string): void {
       :registry-options="registryOptions"
       setup-only
       :readonly="readonly"
-      :can-unlink="isRegistryValueReference(parsed[setupField])"
+      :can-unlink="isFieldReference(parsed[setupField])"
       @update-value="saveLink"
       @use-inline="unlinkSetup"
       @search-registry="(registry, query, lookup) => emit('searchRegistry', registry, query, lookup)"
@@ -763,6 +821,12 @@ function closeRegistry(name: string): void {
 </template>
 
 <style scoped>
+.additional-fields {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+}
+
 .field.coordinate {
   grid-column: 1 / -1;
 }
