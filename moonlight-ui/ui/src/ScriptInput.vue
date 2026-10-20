@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vPopover } from './popover';
 import MoonlightButton from './MoonlightButton.vue';
 import { ref, useId, watch } from 'vue';
 import { useSelene } from './selene';
@@ -139,7 +140,7 @@ function keydown(event: KeyboardEvent): void {
       @blur="close"
       @keydown="keydown"
     />
-    <div v-if="open && !readonly" :id="id" class="options moonlight-popup ml-popover" role="listbox">
+    <div v-if="open && !readonly" :id="id" v-popover class="options moonlight-popup ml-popover" role="listbox">
       <MoonlightButton
         class="moonlight-item"
         variant="ghost"

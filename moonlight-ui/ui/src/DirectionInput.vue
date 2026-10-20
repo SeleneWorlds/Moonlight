@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vPopover } from './popover';
 import MoonlightButton from './MoonlightButton.vue';
 import { computed, onMounted, onUnmounted, ref, useId } from 'vue';
 import {
@@ -127,6 +128,7 @@ onUnmounted(() => {
       <div
         v-if="open"
         :id="popupId"
+        v-popover
         class="popup moonlight-popup ml-popover"
         role="group"
         aria-label="Select direction"

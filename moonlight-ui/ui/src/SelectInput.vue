@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vPopover } from './popover';
 import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue';
 import { Check, ChevronDown } from '@lucide/vue';
 
@@ -140,7 +141,15 @@ onUnmounted(() => document.removeEventListener('pointerdown', closeOutside));
       />
       <ChevronDown :size="14" aria-hidden="true" />
     </div>
-    <div v-if="open" :id="id" ref="popup" class="options moonlight-popup ml-popover" role="listbox" :aria-label="label">
+    <div
+      v-if="open"
+      :id="id"
+      ref="popup"
+      v-popover
+      class="options moonlight-popup ml-popover"
+      role="listbox"
+      :aria-label="label"
+    >
       <div
         class="moonlight-item"
         v-for="(option, index) in filteredOptions"
@@ -156,9 +165,9 @@ onUnmounted(() => document.removeEventListener('pointerdown', closeOutside));
         <span>{{ optionLabel(option) }}</span>
         <Check v-if="value === option" :size="14" aria-hidden="true" />
       </div>
-    </div>
-    <div v-if="open && !filteredOptions.length" class="empty moonlight-popup ml-popover" role="status">
-      No matching {{ label.toLowerCase() }} options.
+      <div v-if="!filteredOptions.length" class="empty" role="status">
+        No matching {{ label.toLowerCase() }} options.
+      </div>
     </div>
   </div>
 </template>

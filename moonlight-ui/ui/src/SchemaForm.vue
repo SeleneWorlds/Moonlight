@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vPopover } from './popover';
 import MoonlightButton from './MoonlightButton.vue';
 import MoonlightSwitch from './MoonlightSwitch.vue';
 import { computed, nextTick, reactive, ref, watch } from 'vue';
@@ -711,6 +712,7 @@ function closeRegistry(name: string): void {
         <div
           v-if="!readonly && openRegistryField === field.name"
           :id="`registry-${field.name}`"
+          v-popover
           class="options moonlight-popup ml-popover"
           role="listbox"
         >
