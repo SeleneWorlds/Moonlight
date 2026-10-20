@@ -4,7 +4,7 @@ import MoonlightButton from 'moonlight-ui/MoonlightButton.vue';
 import MoonlightModal from 'moonlight-ui/MoonlightModal.vue';
 import { ownsEscape } from 'moonlight-ui/keyboard';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { Focus, Database, ArrowDown, ArrowUp, Grid2X2, Eye, Lightbulb, X } from '@lucide/vue';
+import { Focus, Database, ArrowDown, ArrowUp, Grid2X2, Tag, Lightbulb, X, Languages } from '@lucide/vue';
 import type { DistancePick, SchemaDefinition } from 'moonlight-ui/schema';
 import { latestRequest } from 'moonlight-ui/LatestRequest';
 import { parseRegistryOptions } from 'moonlight-ui/registryOptions';
@@ -12,6 +12,8 @@ import { scenarioFromContents, withScenario, withEnabled, mapResources } from '.
 import { pickedDistance, projectedCircle } from './distance';
 import { useSelene, requestEditorOperation, type ClientNetworkPayload, type Coordinate } from './selene';
 import FileModal from './FileModal.vue';
+import LocalizationEditor from './LocalizationEditor.vue';
+const localizationEditor = ref<InstanceType<typeof LocalizationEditor>>();
 import SchemaForm from 'moonlight-ui/SchemaForm.vue';
 import MoonlightWorldMarker from 'moonlight-ui/MoonlightWorldMarker.vue';
 import MoonlightWorldPreview from 'moonlight-ui/MoonlightWorldPreview.vue';
@@ -1700,6 +1702,7 @@ onBeforeUnmount(() => {
   >
     X: {{ hoveredCoordinate.x }} · Y: {{ hoveredCoordinate.y }} · Z: {{ hoveredCoordinate.z }}
   </MoonlightSurface>
+  <LocalizationEditor v-if="enabled" ref="localizationEditor" />
   <ContextMenu
     v-if="enabled && !visible && !inlineForm && !pickingDistance && !pickingCoordinateField && !pickingRegistry"
   />
@@ -1757,13 +1760,15 @@ onBeforeUnmount(() => {
       :aria-pressed="showGizmos"
       @click="showGizmos = !showGizmos"
     >
-      <Eye :size="16" aria-hidden="true" />
-      Toggle Gizmos
+      <Tag :size="16" aria-hidden="true" />
     </MoonlightButton>
     <MoonlightButton type="button" @click="setProjectVisible(true)">
       <Database :size="16" aria-hidden="true" />
       Registry Editor
     </MoonlightButton>
+    <MoonlightButton type="button" @click="localizationEditor?.open()">
+    <Languages :size="16" aria-hidden="true" />
+    Localization Editor</MoonlightButton>
   </MoonlightSurface>
   <div v-if="enabled && showGizmos && !pickerActive" class="gizmos ml-world-layer">
     <MoonlightWorldMarker

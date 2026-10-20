@@ -595,3 +595,11 @@
 .moonlight-panel > :where(header, footer) {
   flex-shrink: 0;
 }
+
+.moonlight-dialog-wide {
+  width: min(1100px, calc(100vw - 32px));
+}
+.moonlight-code-editor {
+  height: 55vh;
+  resize: vertical;
+}
