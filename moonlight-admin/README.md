@@ -39,6 +39,8 @@ AdminMenu.registerAction({
 ```
 
 Supported parameter types are `number`, `string`, `message`, `boolean`, `enum`, `coordinate`, `registry`, and `target`.
+Number parameters support `min`, `max`, and `step`. Set `editor = "slider"` with
+`min < max` to use moonlight-ui’s shared slider with numeric entry.
 Message parameters accept strings and span the full width of the action form.
 Enum parameters render a dropdown from their static `options` list and submit the selected string value.
 Coordinate parameters submit an `{ x, y, z }` table and can be entered manually or

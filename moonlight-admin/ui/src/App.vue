@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SliderInput from 'moonlight-ui/SliderInput.vue';
 import ButtonGroup from 'moonlight-ui/ButtonGroup.vue';
 import MoonlightSwitch from 'moonlight-ui/MoonlightSwitch.vue';
 import MoonlightSurface from 'moonlight-ui/MoonlightSurface.vue';
@@ -41,6 +42,7 @@ const parameterSchema = z.discriminatedUnion('type', [
     min: z.number().optional(),
     max: z.number().optional(),
     step: z.number().positive().optional(),
+    editor: z.literal('slider').optional(),
   }),
   z.object({
     name: z.string(),
@@ -811,6 +813,11 @@ onBeforeUnmount(() => {
             <form
               v-if="action.parameters.length > 0 && expandedActionId === action.id"
               class="form moonlight-form ml-border-top"
+              :class="{
+                'form-with-sliders': action.parameters.some(
+                  (parameter) => parameter.type === 'number' && parameter.editor === 'slider',
+                ),
+              }"
               @submit.prevent="execute(action)"
             >
               <div
@@ -840,9 +847,24 @@ onBeforeUnmount(() => {
                     Include Offline
                   </MoonlightSwitch>
                 </span>
+                <SliderInput
+                  v-if="
+                    parameter.type === 'number' &&
+                    parameter.editor === 'slider' &&
+                    parameter.min !== undefined &&
+                    parameter.max !== undefined
+                  "
+                  :value="values[action.id]![parameter.name] as number | undefined"
+                  :minimum="parameter.min"
+                  :maximum="parameter.max"
+                  :step="parameter.step"
+                  :label="parameter.label"
+                  :required="parameter.required"
+                  @update="values[action.id]![parameter.name] = $event"
+                />
                 <input
                   class="moonlight-input"
-                  v-if="parameter.type === 'number'"
+                  v-else-if="parameter.type === 'number'"
                   v-model.number="values[action.id]![parameter.name]"
                   type="number"
                   :required="parameter.required"
@@ -1027,3 +1049,17 @@ onBeforeUnmount(() => {
     </Transition>
   </main>
 </template>
+
+<style scoped>
+main {
+  container-type: inline-size;
+}
+.form-with-sliders {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@container (max-width: 480px) {
+  .form-with-sliders {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+</style>

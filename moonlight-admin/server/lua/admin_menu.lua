@@ -57,6 +57,14 @@ local function normalizeParameter(parameter)
         normalized.min = parameter.min
         normalized.max = parameter.max
         normalized.step = parameter.step
+        normalized.editor = parameter.editor
+        assert(normalized.editor == nil or normalized.editor == "slider", "unsupported number parameter editor")
+        if normalized.editor == "slider" then
+            assert(type(normalized.min) == "number" and type(normalized.max) == "number"
+                and normalized.min < normalized.max, "slider parameters require min < max")
+            assert(normalized.step == nil or (type(normalized.step) == "number" and normalized.step > 0),
+                "slider parameter step must be positive")
+        end
         assert(normalized.min == nil or type(normalized.min) == "number", "parameter min must be a number")
         assert(normalized.max == nil or type(normalized.max) == "number", "parameter max must be a number")
         assert(normalized.step == nil or type(normalized.step) == "number", "parameter step must be a number")
