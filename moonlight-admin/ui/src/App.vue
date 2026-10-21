@@ -28,6 +28,13 @@ const parameterSchema = z.discriminatedUnion('type', [
   z.object({
     name: z.string(),
     label: z.string(),
+    type: z.literal('file'),
+    required: z.boolean(),
+    default: z.string().optional(),
+  }),
+  z.object({
+    name: z.string(),
+    label: z.string(),
     type: z.literal('number'),
     required: z.boolean(),
     default: z.number().optional(),
@@ -110,6 +117,7 @@ const resultPayloadSchema = z.object({
   actionId: z.string(),
   success: z.boolean(),
   message: z.string(),
+  download: z.object({ name: z.string(), content: z.string() }).optional(),
 });
 const registryOptionsPayloadSchema = z.object({
   actionId: z.string(),
@@ -317,6 +325,17 @@ function receiveResult(payload: ClientNetworkPayload): void {
   }
   executingActionId.value = null;
   result.value = parsed.data;
+  if (parsed.data.success && parsed.data.download) {
+    const file = parsed.data.download;
+    const url = URL.createObjectURL(new Blob([file.content], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = file.name;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
   const shouldClose = parsed.data.success && closeOnSuccessActionId.value === parsed.data.actionId;
   closeOnSuccessActionId.value = null;
   if (shouldClose) {
@@ -515,6 +534,22 @@ function suppliedParameters(action: AdminAction): Record<string, unknown> {
     }
   }
   return supplied;
+}
+
+async function readFile(action: AdminAction, name: string, event: Event): Promise<void> {
+  values[action.id]![name] = undefined;
+  const file = (event.target as HTMLInputElement).files?.[0];
+  if (!file) {
+    return;
+  }
+  try {
+    if (file.size > 4 * 1024 * 1024) {
+      throw new Error('Character JSON must be at most 4 MiB.');
+    }
+    values[action.id]![name] = await file.text();
+  } catch (error) {
+    result.value = { actionId: action.id, success: false, message: String(error) };
+  }
 }
 
 function execute(action: AdminAction, keepOpen = false): void {
@@ -821,6 +856,14 @@ onBeforeUnmount(() => {
                   v-model="values[action.id]![parameter.name] as string"
                   type="text"
                   :required="parameter.required"
+                />
+                <input
+                  v-else-if="parameter.type === 'file'"
+                  class="moonlight-input"
+                  type="file"
+                  accept=".json,application/json"
+                  :required="parameter.required"
+                  @change="readFile(action, parameter.name, $event)"
                 />
                 <MoonlightSwitch
                   v-else-if="parameter.type === 'boolean'"

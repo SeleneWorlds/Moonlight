@@ -10,6 +10,7 @@ local supportedParameterTypes = {
     number = true,
     string = true,
     message = true,
+    file = true,
     enum = true,
     boolean = true,
     coordinate = true,
@@ -37,7 +38,7 @@ local function normalizeParameter(parameter)
 
     if parameter.default ~= nil then
         local defaultType = (parameterType == "registry" or parameterType == "target" or parameterType == "message"
-            or parameterType == "enum") and "string"
+            or parameterType == "enum" or parameterType == "file") and "string"
             or parameterType == "coordinate" and "table"
             or parameterType
         assert(type(parameter.default) == defaultType, "parameter default must match its type")
@@ -250,7 +251,7 @@ local function validateValues(action, supplied, player)
             assert(not parameter.required, parameter.label .. " is required")
         else
             local valueType = (parameter.type == "registry" or parameter.type == "target" or parameter.type == "message"
-                or parameter.type == "enum") and "string"
+                or parameter.type == "enum" or parameter.type == "file") and "string"
                 or parameter.type == "coordinate" and "table"
                 or parameter.type
             assert(type(value) == valueType, parameter.label .. " must be a " .. valueType)
@@ -417,7 +418,8 @@ Network.handlePayload("moonlight-admin:execute", function(player, payload)
     Network.sendToPlayer(player, "moonlight-admin:result", {
         actionId = action.id,
         success = succeeded,
-        message = resultMessage,
+        message = succeeded and type(message) == "table" and message.message or resultMessage,
+        download = succeeded and type(message) == "table" and message.download or nil,
     })
 end)
 

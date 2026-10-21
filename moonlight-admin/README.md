@@ -92,3 +92,9 @@ defaults are deduplicated in the initial payload and applied in both the menu an
 server-side validation. Complete target lists are searched on demand. Set
 `requireOnline = true` on a target parameter to exclude offline options and hide the
 **Include Offline** switch.
+
+Actions can declare a `file` parameter to receive the UTF-8 contents of a JSON
+file selected in the menu (up to 4 MiB). Actions returning
+`{ message = "Exported.", download = { name = "record.json", content = json } }`
+trigger a JSON file download alongside the result message. Existing string
+results continue to work.
