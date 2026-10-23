@@ -13,13 +13,13 @@ importers:
         version: 1.56.0(vue@3.5.44(typescript@5.9.3))
       moonlight-ui:
         specifier: file:../moonlight-ui
-        version: file:../moonlight-ui(@lucide/vue@1.56.0(vue@3.5.44(typescript@5.9.3)))(selene-vue@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene-vue(selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene)(vue@3.5.44(typescript@5.9.3)))(selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene)(vue@3.5.44(typescript@5.9.3))
+        version: file:../moonlight-ui(@lucide/vue@1.56.0(vue@3.5.44(typescript@5.9.3)))(selene-vue@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/787aec7d963f5c1fc0adb82ce606a01c6e44cd69#path:/sdk/selene-vue(selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/787aec7d963f5c1fc0adb82ce606a01c6e44cd69#path:/sdk/selene)(vue@3.5.44(typescript@5.9.3)))(selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/787aec7d963f5c1fc0adb82ce606a01c6e44cd69#path:/sdk/selene)(vue@3.5.44(typescript@5.9.3))
       selene:
-        specifier: github:SeleneWorlds/Selene#e86fd56ce84ad864598dd3a9609d7455c02f20d1&path:/sdk/selene
-        version: https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene
+        specifier: github:SeleneWorlds/Selene#787aec7d963f5c1fc0adb82ce606a01c6e44cd69&path:/sdk/selene
+        version: https://codeload.github.com/SeleneWorlds/Selene/tar.gz/787aec7d963f5c1fc0adb82ce606a01c6e44cd69#path:/sdk/selene
       selene-vue:
-        specifier: github:SeleneWorlds/Selene#e86fd56ce84ad864598dd3a9609d7455c02f20d1&path:/sdk/selene-vue
-        version: https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene-vue(selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene)(vue@3.5.44(typescript@5.9.3))
+        specifier: github:SeleneWorlds/Selene#787aec7d963f5c1fc0adb82ce606a01c6e44cd69&path:/sdk/selene-vue
+        version: https://codeload.github.com/SeleneWorlds/Selene/tar.gz/787aec7d963f5c1fc0adb82ce606a01c6e44cd69#path:/sdk/selene-vue(selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/787aec7d963f5c1fc0adb82ce606a01c6e44cd69#path:/sdk/selene)(vue@3.5.44(typescript@5.9.3))
       vue:
         specifier: ^3.5.13
         version: 3.5.44(typescript@5.9.3)
@@ -877,15 +877,15 @@ packages:
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
     hasBin: true
 
-  selene-vue@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene-vue:
-    resolution: {gitHosted: true, path: /sdk/selene-vue, tarball: https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1}
+  selene-vue@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/787aec7d963f5c1fc0adb82ce606a01c6e44cd69#path:/sdk/selene-vue:
+    resolution: {gitHosted: true, integrity: sha512-EednA/ZBUg62I2LkdlNFe54bYbGO6UxnTNGdtqdCNa0hP4xMyuISM6QB7jIZyii6a2L23hVQQojYRdrQuiLawQ==, tarball: https://codeload.github.com/SeleneWorlds/Selene/tar.gz/787aec7d963f5c1fc0adb82ce606a01c6e44cd69}
     version: 0.1.0
     peerDependencies:
       selene: ^0.1.0
       vue: ^3.5.13
 
-  selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene:
-    resolution: {gitHosted: true, path: /sdk/selene, tarball: https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1}
+  selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/787aec7d963f5c1fc0adb82ce606a01c6e44cd69#path:/sdk/selene:
+    resolution: {gitHosted: true, integrity: sha512-EednA/ZBUg62I2LkdlNFe54bYbGO6UxnTNGdtqdCNa0hP4xMyuISM6QB7jIZyii6a2L23hVQQojYRdrQuiLawQ==, tarball: https://codeload.github.com/SeleneWorlds/Selene/tar.gz/787aec7d963f5c1fc0adb82ce606a01c6e44cd69}
     version: 0.1.0
 
   semver@7.8.5:
@@ -1681,10 +1681,10 @@ snapshots:
     dependencies:
       brace-expansion: 2.1.7
 
-  moonlight-ui@file:../moonlight-ui(@lucide/vue@1.56.0(vue@3.5.44(typescript@5.9.3)))(selene-vue@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene-vue(selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene)(vue@3.5.44(typescript@5.9.3)))(selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene)(vue@3.5.44(typescript@5.9.3)):
+  moonlight-ui@file:../moonlight-ui(@lucide/vue@1.56.0(vue@3.5.44(typescript@5.9.3)))(selene-vue@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/787aec7d963f5c1fc0adb82ce606a01c6e44cd69#path:/sdk/selene-vue(selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/787aec7d963f5c1fc0adb82ce606a01c6e44cd69#path:/sdk/selene)(vue@3.5.44(typescript@5.9.3)))(selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/787aec7d963f5c1fc0adb82ce606a01c6e44cd69#path:/sdk/selene)(vue@3.5.44(typescript@5.9.3)):
     dependencies:
-      selene: https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene
-      selene-vue: https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene-vue(selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene)(vue@3.5.44(typescript@5.9.3))
+      selene: https://codeload.github.com/SeleneWorlds/Selene/tar.gz/787aec7d963f5c1fc0adb82ce606a01c6e44cd69#path:/sdk/selene
+      selene-vue: https://codeload.github.com/SeleneWorlds/Selene/tar.gz/787aec7d963f5c1fc0adb82ce606a01c6e44cd69#path:/sdk/selene-vue(selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/787aec7d963f5c1fc0adb82ce606a01c6e44cd69#path:/sdk/selene)(vue@3.5.44(typescript@5.9.3))
       vue: 3.5.44(typescript@5.9.3)
     optionalDependencies:
       '@lucide/vue': 1.56.0(vue@3.5.44(typescript@5.9.3))
@@ -1772,12 +1772,12 @@ snapshots:
       '@rollup/rollup-win32-x64-msvc': 4.64.6
       fsevents: 2.3.3
 
-  selene-vue@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene-vue(selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene)(vue@3.5.44(typescript@5.9.3)):
+  selene-vue@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/787aec7d963f5c1fc0adb82ce606a01c6e44cd69#path:/sdk/selene-vue(selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/787aec7d963f5c1fc0adb82ce606a01c6e44cd69#path:/sdk/selene)(vue@3.5.44(typescript@5.9.3)):
     dependencies:
-      selene: https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene
+      selene: https://codeload.github.com/SeleneWorlds/Selene/tar.gz/787aec7d963f5c1fc0adb82ce606a01c6e44cd69#path:/sdk/selene
       vue: 3.5.44(typescript@5.9.3)
 
-  selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/e86fd56ce84ad864598dd3a9609d7455c02f20d1#path:/sdk/selene: {}
+  selene@https://codeload.github.com/SeleneWorlds/Selene/tar.gz/787aec7d963f5c1fc0adb82ce606a01c6e44cd69#path:/sdk/selene: {}
 
   semver@7.8.5: {}
 
