@@ -622,6 +622,9 @@ const moveCameraLevel = (direction: number, event: MouseEvent) => {
     z: coordinate.z + direction * offset,
   });
 };
+function projectToScreen(coordinate: Coordinate): { x: number; y: number } {
+  return selene.world.logicalToScreen(selene.world.projectCoordinate(coordinate));
+}
 const projectionRevision = ref(0);
 const showTileGrid = ref(false);
 const showLights = ref(selene.world.isLightingEnabled());
@@ -665,8 +668,8 @@ const distanceCircle = computed(() => {
     return null;
   }
   return {
-    points: projectedCircle(pick.coordinate, pick.distance, selene.world.projectCoordinate),
-    center: selene.world.projectCoordinate(pick.coordinate),
+    points: projectedCircle(pick.coordinate, pick.distance, projectToScreen),
+    center: projectToScreen(pick.coordinate),
   };
 });
 const gizmoRangeCircle = computed(() => {
@@ -679,8 +682,8 @@ const gizmoRangeCircle = computed(() => {
     return null;
   }
   return {
-    points: projectedCircle(gizmo.coordinate, gizmo.range, selene.world.projectCoordinate),
-    center: selene.world.projectCoordinate(gizmo.coordinate),
+    points: projectedCircle(gizmo.coordinate, gizmo.range, projectToScreen),
+    center: projectToScreen(gizmo.coordinate),
   };
 });
 watch([enabled, showGizmos, pickerActive, pickingDistance, dragging, () => cameraCoordinate.value.z], () => {
@@ -694,7 +697,7 @@ const projectedGizmos = computed(() => {
   void projectionRevision.value;
   return gizmos.value
     .filter(({ coordinate }) => coordinate.z === cameraCoordinate.value.z)
-    .map((gizmo) => ({ ...gizmo, screen: selene.world.projectCoordinate(gizmo.coordinate) }));
+    .map((gizmo) => ({ ...gizmo, screen: projectToScreen(gizmo.coordinate) }));
 });
 
 const releases: Array<() => void> = [];

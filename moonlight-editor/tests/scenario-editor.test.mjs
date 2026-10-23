@@ -27,7 +27,12 @@ function editor(
     localStorage: { getItem: (key) => storage.get(key), setItem: (key, value) => storage.set(key, value) },
   };
   const api = {
-    world: { getCameraCoordinate: () => ({ x: 0, y: 0, z: 0 }), isLightingEnabled: () => true },
+    world: {
+      getCameraCoordinate: () => ({ x: 0, y: 0, z: 0 }),
+      isLightingEnabled: () => true,
+      projectCoordinate: ({ x, y, z }) => ({ x: 1024 + (x + y) * 64, y: 768 + (y - x) * 32 - z * 192 }),
+      logicalToScreen: ({ x, y }) => ({ x: 88 + x * 0.5, y: y * 0.5 }),
+    },
     network: { sendToServer: () => {} },
     http: {
       request: async (path, payload) => {
@@ -81,7 +86,7 @@ function editor(
   };
   const source = readFileSync(filename, 'utf8').replace(
     '</script>',
-    `defineExpose({ manageScenario, save, resourcePermissions, contents, scenarioBusy, scenarioDefinitions, loadScenarios, moveToScenario, scenarioMode, selectedBundle, selectedRegistry, selectedScenario, bundleRegistries, scenarioProjects, scenarioSchemas, entries, listedFiles, scenarios, projectLoading, visible, selectedPath, registrySchema, statusIsError, status, loadScenarioProjects, setScenarioEnabled, createFile, createScenario, receiveFile, selectBundle, toggleScenarioMode });\n</script>`,
+    `defineExpose({ projectedGizmos, gizmos, projectToScreen, manageScenario, save, resourcePermissions, contents, scenarioBusy, scenarioDefinitions, loadScenarios, moveToScenario, scenarioMode, selectedBundle, selectedRegistry, selectedScenario, bundleRegistries, scenarioProjects, scenarioSchemas, entries, listedFiles, scenarios, projectLoading, visible, selectedPath, registrySchema, statusIsError, status, loadScenarioProjects, setScenarioEnabled, createFile, createScenario, receiveFile, selectBundle, toggleScenarioMode });\n</script>`,
   );
   const { descriptor } = parse(source, { filename });
   const script = compileScript(descriptor, { id: 'scenario-editor' });
@@ -369,4 +374,17 @@ test('Manage Scenario opens its registry file with the enabled schema while keep
   assert.deepEqual(JSON.parse(definition.contents), { name: 'Raid renamed', enabled: false });
   assert.equal(view.state.contents, definition.contents);
   view.close();
+});
+
+
+test('gizmos use screen pixels rather than offscreen render pixels', () => {
+  const view = editor([]);
+  try {
+    view.state.gizmos = [{ id: 'npc', label: 'NPC', coordinate: { x: 2, y: 1, z: 0 } }];
+    // World projection is (1216, 736), displayed at half size with 88px letterboxing.
+    assert.deepEqual(view.state.projectedGizmos[0].screen, { x: 696, y: 368 });
+    assert.deepEqual(view.state.projectToScreen({ x: 3, y: 1, z: 0 }), { x: 728, y: 352 });
+  } finally {
+    view.close();
+  }
 });
