@@ -4,7 +4,7 @@ import MoonlightButton from 'moonlight-ui/MoonlightButton.vue';
 import MoonlightModal from 'moonlight-ui/MoonlightModal.vue';
 import { ownsEscape } from 'moonlight-ui/keyboard';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { Focus, Database, ArrowDown, ArrowUp, Grid2X2, Tag, Lightbulb, X, Languages } from '@lucide/vue';
+import { Focus, Database, ArrowDown, ArrowUp, Grid2X2, Tag, Lightbulb, X, Languages, Trash2 } from '@lucide/vue';
 import type { DistancePick, SchemaDefinition } from 'moonlight-ui/schema';
 import { latestRequest } from 'moonlight-ui/LatestRequest';
 import { parseRegistryOptions } from 'moonlight-ui/registryOptions';
@@ -143,6 +143,7 @@ const inlineForm = ref<{
   coordinate: Coordinate;
   schema: Record<string, SchemaDefinition>;
   fieldLabels?: Record<string, string>;
+  canDelete: boolean;
   contents: string;
 } | null>(null);
 const inlinePicking = ref(false);
@@ -182,6 +183,13 @@ function clickGizmo(gizmo: EditorGizmo): void {
   } else if (gizmo.path) {
     openFile(gizmo.path);
   }
+}
+function deleteInlineForm(): void {
+  if (!inlineForm.value?.canDelete || inlineSaving.value) {
+    return;
+  }
+  inlineSaving.value = true;
+  selene.network.sendToServer('moonlight-editor:delete-inline-form', { id: inlineForm.value.id });
 }
 function saveInlineForm(): void {
   if (!inlineForm.value || inlineSaving.value) {
@@ -1386,6 +1394,7 @@ onMounted(() => {
             ? (payload.fieldLabels as Record<string, string>)
             : undefined,
         contents: payload.contents,
+        canDelete: payload.canDelete === true,
       };
       inlineSaving.value = false;
       inlineMessage.value = '';
@@ -1770,8 +1779,9 @@ onBeforeUnmount(() => {
       Registry Editor
     </MoonlightButton>
     <MoonlightButton type="button" @click="localizationEditor?.open()">
-    <Languages :size="16" aria-hidden="true" />
-    Localization Editor</MoonlightButton>
+      <Languages :size="16" aria-hidden="true" />
+      Localization Editor</MoonlightButton
+    >
   </MoonlightSurface>
   <div v-if="enabled && showGizmos && !pickerActive" class="gizmos ml-world-layer">
     <MoonlightWorldMarker
@@ -1825,6 +1835,18 @@ onBeforeUnmount(() => {
     @click.stop
   >
     <template #headerActions>
+      <MoonlightButton
+        v-if="inlineForm.canDelete"
+        variant="ghost"
+        size="icon"
+        type="button"
+        aria-label="Delete annotations"
+        title="Delete annotations"
+        :disabled="inlineSaving"
+        @click="deleteInlineForm"
+      >
+        <Trash2 :size="18" aria-hidden="true" />
+      </MoonlightButton>
       <MoonlightButton variant="ghost" size="icon" type="button" aria-label="Close" @click="closeInlineForm">
         <X :size="18" aria-hidden="true" />
       </MoonlightButton>

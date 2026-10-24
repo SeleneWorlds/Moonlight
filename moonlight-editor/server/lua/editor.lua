@@ -282,6 +282,21 @@ Network.handlePayload("moonlight-editor:open-registry-entry", function(player, p
     if not ok then sendError(player, message) end
 end)
 
+function Editor.openInlineForm(player, coordinate, form)
+    assert(Editor.isEnabled(player), "Editor must be enabled to open a form.")
+    assert(type(form.schema) == "table" and type(form.values) == "table" and type(form.update) == "function",
+        "Invalid inline form.")
+    local contents = Json.encode(form.values)
+    nextInlineId = nextInlineId + 1
+    player:overwriteRuntimeData(INLINE_SESSION_KEY, { id = nextInlineId, update = form.update, delete = form.delete })
+    Network.sendToPlayer(player, "moonlight-editor:inline-form", {
+        id = nextInlineId, title = form.title or "Edit coordinate", schema = form.schema,
+        fieldLabels = form.fieldLabels,
+        canDelete = type(form.delete) == "function",
+        contents = contents, coordinate = { x = coordinate.x, y = coordinate.y, z = coordinate.z },
+    })
+end
+
 Network.handlePayload("moonlight-editor:lookup-coordinate", function(player, payload)
     if not Editor.isEnabled(player) or type(payload) ~= "table" then return end
     if type(payload.x) ~= "number" or type(payload.y) ~= "number" or type(payload.z) ~= "number"
@@ -296,13 +311,7 @@ Network.handlePayload("moonlight-editor:lookup-coordinate", function(player, pay
         end
         if ok and type(path) == "table" and payload.scope == nil then
             if type(path.schema) == "table" and type(path.values) == "table" and type(path.update) == "function" then
-                nextInlineId = nextInlineId + 1
-                player:overwriteRuntimeData(INLINE_SESSION_KEY, { id = nextInlineId, update = path.update })
-                Network.sendToPlayer(player, "moonlight-editor:inline-form", {
-                    id = nextInlineId, title = path.title or "Edit coordinate", schema = path.schema,
-                    fieldLabels = path.fieldLabels,
-                    contents = Json.encode(path.values), coordinate = { x = payload.x, y = payload.y, z = payload.z },
-                })
+                Editor.openInlineForm(player, coordinate, path)
                 return
             end
         end
@@ -339,6 +348,21 @@ Network.handlePayload("moonlight-editor:save-inline-form", function(player, payl
     end)
     Network.sendToPlayer(player, "moonlight-editor:inline-form-saved", {
         id = session.id, success = ok, message = ok and "Changes applied" or tostring(message),
+    })
+end)
+
+Network.handlePayload("moonlight-editor:delete-inline-form", function(player, payload)
+    if type(payload) ~= "table" or type(payload.id) ~= "number" then return end
+    local session = player:hasRuntimeData(INLINE_SESSION_KEY) and player:getRuntimeData(INLINE_SESSION_KEY)
+    local ok, message = pcall(function()
+        assert(Editor.isEnabled(player) and session and payload.id == session.id,
+            "This form has expired. Close it and click the coordinate again.")
+        assert(type(session.delete) == "function", "This form does not support deletion.")
+        session.delete(player)
+        player:removeRuntimeData(INLINE_SESSION_KEY)
+    end)
+    Network.sendToPlayer(player, "moonlight-editor:inline-form-saved", {
+        id = payload.id, success = ok, message = ok and "Annotations deleted" or tostring(message),
     })
 end)
 
