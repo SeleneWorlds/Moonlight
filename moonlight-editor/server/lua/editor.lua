@@ -13,6 +13,7 @@ local gizmoProviders = {}
 local goToProviders = {}
 local contextMenuActions = {}
 local contextMenuOrder = {}
+local contextMenuProviders = {}
 local registryVisualResolvers = {}
 local MAX_FILE_BYTES = 60 * 1024
 local RUNTIME_DATA_KEY = "moonlight-editor:state"
@@ -138,6 +139,26 @@ function Editor.registerContextMenuAction(action)
     end)
 end
 
+function Editor.registerContextMenuProvider(provider)
+    assert(type(provider) == "function", "Context menu provider must be a function.")
+    registerProvider(contextMenuProviders, provider)
+end
+
+local function contextActions(player, coordinate)
+    local actions = {}
+    for _, id in ipairs(contextMenuOrder) do
+        table.insert(actions, contextMenuActions[id])
+    end
+    for _, provider in ipairs(contextMenuProviders) do
+        local ok, entries = pcall(provider, player, coordinate)
+        if not ok then sendError(player, entries)
+        else
+            for _, action in ipairs(entries or {}) do table.insert(actions, action) end
+        end
+    end
+    return actions
+end
+
 local function contextCoordinate(player, payload)
     if not Editor.isEnabled(player) or type(payload) ~= "table" then return end
     for _, axis in ipairs({ "x", "y", "z" }) do
@@ -151,14 +172,13 @@ Network.handlePayload("moonlight-editor:query-context-menu", function(player, pa
     local coordinate = contextCoordinate(player, payload)
     if not coordinate then return end
     local actions = {}
-    for _, id in ipairs(contextMenuOrder) do
-        local action = contextMenuActions[id]
+    for _, action in ipairs(contextActions(player, coordinate)) do
         local ok, available = pcall(function()
             return not action.isAvailable or action.isAvailable(player, coordinate)
         end)
         if not ok then sendError(player, available)
         elseif available then
-            table.insert(actions, { id = id, label = action.label, separatorBefore = action.separatorBefore })
+            table.insert(actions, { id = action.id, label = action.label, separatorBefore = action.separatorBefore })
         end
     end
     Network.sendToPlayer(player, "moonlight-editor:context-menu", {
@@ -169,7 +189,10 @@ end)
 Network.handlePayload("moonlight-editor:execute-context-action", function(player, payload)
     local coordinate = contextCoordinate(player, payload)
     if not coordinate or type(payload.id) ~= "string" then return end
-    local action = contextMenuActions[payload.id]
+    local action
+    for _, candidate in ipairs(contextActions(player, coordinate)) do
+        if candidate.id == payload.id then action = candidate; break end
+    end
     if not action then return end
     local ok, message = pcall(function()
         assert(not action.isAvailable or action.isAvailable(player, coordinate), "Action is no longer available.")
