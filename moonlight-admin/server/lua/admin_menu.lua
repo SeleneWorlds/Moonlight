@@ -1,3 +1,4 @@
+local Lifecycle = require("selene.lifecycle")
 local Network = require("selene.network")
 local Registries = require("selene.registries")
 
@@ -5,6 +6,13 @@ local AdminMenu = {}
 local actions = {}
 local registryVisualResolvers = {}
 local targetResolvers = {}
+
+local function registerValue(registry, key, value)
+    registry[key] = value
+    Lifecycle.onUnload(function()
+        if registry[key] == value then registry[key] = nil end
+    end)
+end
 
 local supportedParameterTypes = {
     number = true,
@@ -320,26 +328,26 @@ function AdminMenu.registerAction(definition)
         table.insert(parameters, normalized)
     end
 
-    actions[id] = {
+    registerValue(actions, id, {
         id = id,
         label = definition.label,
         description = definition.description,
         parameters = parameters,
         execute = definition.execute,
         isAvailable = definition.isAvailable,
-    }
+    })
 end
 
 function AdminMenu.registerRegistryVisualResolver(registryName, resolver)
     registryName = assertIdentifier(registryName, "registry name")
     assert(type(resolver) == "function", "registry visual resolver must be a function")
-    registryVisualResolvers[registryName] = resolver
+    registerValue(registryVisualResolvers, registryName, resolver)
 end
 
 function AdminMenu.registerTargetResolver(name, resolver)
     name = assertIdentifier(name, "target resolver name")
     assert(type(resolver) == "function", "target resolver must be a function")
-    targetResolvers[name] = resolver
+    registerValue(targetResolvers, name, resolver)
 end
 
 Network.handlePayload("moonlight-admin:request-actions", function(player)

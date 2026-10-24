@@ -1,3 +1,4 @@
+package.loaded["selene.lifecycle"] = { onUnload = function() end }
 local handlers, replies = {}, {}
 package.loaded["selene.network"] = {
     handlePayload = function(name, callback) handlers[name] = callback end,

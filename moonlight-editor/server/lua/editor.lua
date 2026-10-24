@@ -1,3 +1,4 @@
+local Lifecycle = require("selene.lifecycle")
 local Network = require("selene.network")
 local Json = require("selene.json")
 local Event = require("selene.event")
@@ -17,6 +18,25 @@ local MAX_FILE_BYTES = 60 * 1024
 local RUNTIME_DATA_KEY = "moonlight-editor:state"
 local INLINE_SESSION_KEY = "moonlight-editor:inline-session"
 local stateEvent = Event.of("moonlight-editor:state")
+
+local function registerValue(registry, key, value)
+    registry[key] = value
+    Lifecycle.onUnload(function()
+        if registry[key] == value then registry[key] = nil end
+    end)
+end
+
+local function registerProvider(providers, provider)
+    table.insert(providers, provider)
+    Lifecycle.onUnload(function()
+        for index = #providers, 1, -1 do
+            if providers[index] == provider then
+                table.remove(providers, index)
+                break
+            end
+        end
+    end)
+end
 
 local function sendError(player, message)
     Network.sendToPlayer(player, "moonlight-editor:error", { message = tostring(message) })
@@ -93,7 +113,7 @@ end)
 
 function Editor.registerCoordinateLookup(lookup)
     assert(type(lookup) == "function", "Coordinate lookup must be a function.")
-    table.insert(coordinateLookups, lookup)
+    registerProvider(coordinateLookups, lookup)
 end
 
 ---Register { id, label, isAvailable?(player, coordinate), execute(player, coordinate) }.
@@ -104,8 +124,17 @@ function Editor.registerContextMenuAction(action)
     assert(type(action.label) == "string" and action.label ~= "", "Action label must be a non-empty string.")
     assert(type(action.execute) == "function", "Action execute must be a function.")
     assert(action.isAvailable == nil or type(action.isAvailable) == "function", "Action availability must be a function.")
+    if contextMenuActions[action.id] == nil then
+        table.insert(contextMenuOrder, action.id)
+    end
     contextMenuActions[action.id] = action
-    table.insert(contextMenuOrder, action.id)
+    Lifecycle.onUnload(function()
+        if contextMenuActions[action.id] ~= action then return end
+        contextMenuActions[action.id] = nil
+        for index = #contextMenuOrder, 1, -1 do
+            if contextMenuOrder[index] == action.id then table.remove(contextMenuOrder, index) end
+        end
+    end)
 end
 
 local function contextCoordinate(player, payload)
@@ -148,14 +177,14 @@ end)
 
 function Editor.registerGizmoProvider(provider)
     assert(type(provider) == "function", "Gizmo provider must be a function.")
-    table.insert(gizmoProviders, provider)
+    registerProvider(gizmoProviders, provider)
 end
 
 ---Register a provider returning { name, coordinate = { x, y, z }, visual?, type } targets.
 ---Providers receive the requesting player and are refreshed whenever the menu opens.
 function Editor.registerGoToProvider(provider)
     assert(type(provider) == "function", "GoTo provider must be a function.")
-    table.insert(goToProviders, provider)
+    registerProvider(goToProviders, provider)
 end
 
 Network.handlePayload("moonlight-editor:request-go-to-targets", function(player)
@@ -201,7 +230,7 @@ end)
 function Editor.registerRegistryVisualResolver(registryName, resolver)
     assert(type(registryName) == "string" and registryName ~= "", "Registry name must be a non-empty string.")
     assert(type(resolver) == "function", "Registry visual resolver must be a function.")
-    registryVisualResolvers[registryName] = resolver
+    registerValue(registryVisualResolvers, registryName, resolver)
 end
 
 Network.handlePayload("moonlight-editor:resolve-registry-visuals", function(player, payload)
