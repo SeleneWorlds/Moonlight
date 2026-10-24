@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import MoonlightSurface from 'moonlight-ui/MoonlightSurface.vue';
 import MoonlightButton from 'moonlight-ui/MoonlightButton.vue';
+import GizmoVisual from 'moonlight-ui/GizmoVisual.vue';
+import RegistryIcon from './RegistryIcon.vue';
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useSelene, type Coordinate } from './selene';
 const selene = useSelene();
@@ -13,7 +15,14 @@ const menu = ref<{
   requestId: number;
 } | null>(null);
 const menuElement = ref<InstanceType<typeof MoonlightSurface> | null>(null);
-const actions = ref<Array<{ id: string; label: string; separatorBefore?: boolean }>>([]);
+interface ContextMenuAction {
+  id: string;
+  label: string;
+  icon?: string;
+  visual?: string;
+  separatorBefore?: boolean;
+}
+const actions = ref<ContextMenuAction[]>([]);
 const actionsLoaded = ref(false);
 const clipboardError = ref('');
 let requestId = 0;
@@ -21,6 +30,21 @@ const releases: Array<() => void> = [];
 function close(): void {
   menu.value = null;
 }
+function open(coordinate: Coordinate, clientX: number, clientY: number): void {
+  actions.value = [];
+  actionsLoaded.value = false;
+  clipboardError.value = '';
+  menu.value = {
+    coordinate: { ...coordinate },
+    x: 0,
+    y: 0,
+    clientX: clientX,
+    clientY: clientY,
+    requestId: ++requestId,
+  };
+  selene.network.sendToServer('moonlight-editor:query-context-menu', { ...coordinate, requestId });
+}
+defineExpose({ open });
 function dismissOutside(event: PointerEvent): void {
   const element = menuElement.value?.element;
   const root = element?.getRootNode();
@@ -76,26 +100,18 @@ onMounted(() => {
       if (event.button !== 2) {
         return;
       }
-      actions.value = [];
-      actionsLoaded.value = false;
-      clipboardError.value = '';
-      menu.value = {
-        coordinate: { ...event.coordinate },
-        x: 0,
-        y: 0,
-        clientX: event.clientX,
-        clientY: event.clientY,
-        requestId: ++requestId,
-      };
-      selene.network.sendToServer('moonlight-editor:query-context-menu', { ...event.coordinate, requestId });
+      open(event.coordinate, event.clientX, event.clientY);
     }),
     selene.network.onPayload('moonlight-editor:context-menu', (payload) => {
       if (!menu.value || payload.requestId !== menu.value.requestId || !Array.isArray(payload.actions)) {
         return;
       }
       actions.value = payload.actions.filter(
-        (action): action is { id: string; label: string; separatorBefore?: boolean } =>
-          typeof action?.id === 'string' && typeof action?.label === 'string',
+        (action): action is ContextMenuAction =>
+          typeof action?.id === 'string' &&
+          typeof action?.label === 'string' &&
+          (action.icon == null || typeof action.icon === 'string') &&
+          (action.visual == null || typeof action.visual === 'string'),
       );
       actionsLoaded.value = true;
       const current = menu.value;
@@ -140,19 +156,13 @@ onBeforeUnmount(() => {
     @contextmenu.prevent
   >
     <template v-for="(action, index) in actions" :key="action.id">
-      <div
-        v-if="index > 0 && action.separatorBefore === true"
-        class="separator moonlight-divider"
-        role="separator"
-      />
-      <MoonlightButton
-        class="moonlight-item"
-        variant="ghost"
-        type="button"
-        role="menuitem"
-        @click="execute(action.id)"
-      >
-        {{ action.label }}
+      <div v-if="index > 0 && action.separatorBefore === true" class="separator moonlight-divider" role="separator" />
+      <MoonlightButton class="moonlight-item" variant="ghost" type="button" role="menuitem" @click="execute(action.id)">
+        <span v-if="action.visual || action.icon" class="ml-visual-small ml-center">
+          <GizmoVisual v-if="action.visual" :identifier="action.visual" />
+          <RegistryIcon v-else-if="action.icon" :name="action.icon" :size="20" aria-hidden="true" />
+        </span>
+        <span>{{ action.label }}</span>
       </MoonlightButton>
     </template>
     <div v-if="actions.length" class="separator moonlight-divider" role="separator" />

@@ -19,6 +19,7 @@ import MoonlightWorldMarker from 'moonlight-ui/MoonlightWorldMarker.vue';
 import MoonlightWorldPreview from 'moonlight-ui/MoonlightWorldPreview.vue';
 import GoToMenu from './GoToMenu.vue';
 import ContextMenu from './ContextMenu.vue';
+const contextMenu = ref<InstanceType<typeof ContextMenu> | null>(null);
 
 interface EditorGizmo {
   id: string;
@@ -1716,6 +1717,7 @@ onBeforeUnmount(() => {
   </MoonlightSurface>
   <LocalizationEditor v-if="enabled" ref="localizationEditor" />
   <ContextMenu
+    ref="contextMenu"
     v-if="enabled && !visible && !inlineForm && !pickingDistance && !pickingCoordinateField && !pickingRegistry"
   />
   <MoonlightSurface
@@ -1800,6 +1802,7 @@ onBeforeUnmount(() => {
       @focus="focusedGizmoId = gizmo.id"
       @blur="focusedGizmoId = null"
       @click.stop="clickGizmo(gizmo)"
+      @contextmenu.prevent.stop="contextMenu?.open(gizmo.coordinate, $event.clientX, $event.clientY)"
     />
   </div>
   <MoonlightWorldPreview

@@ -44,6 +44,9 @@ defineExpose({ focus: () => element.value?.focus() });
   font: inherit;
   cursor: pointer;
 }
+.moonlight-button.moonlight-item {
+  justify-content: flex-start;
+}
 .variant-primary {
   border-color: var(--moonlight-accent, #fb7185);
   color: var(--moonlight-text-strong, #fafafa);

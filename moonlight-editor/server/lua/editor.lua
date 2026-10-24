@@ -117,13 +117,15 @@ function Editor.registerCoordinateLookup(lookup)
     registerProvider(coordinateLookups, lookup)
 end
 
----Register { id, label, separatorBefore?, isAvailable?(player, coordinate), execute(player, coordinate) }.
+---Register { id, label, icon?, visual?, separatorBefore?, isAvailable?(player, coordinate), execute(player, coordinate) }.
 ---Availability is checked for both coordinate queries and execution.
 function Editor.registerContextMenuAction(action)
     assert(type(action) == "table", "Context menu action must be a table.")
     assert(type(action.id) == "string" and action.id ~= "", "Action ID must be a non-empty string.")
     assert(type(action.label) == "string" and action.label ~= "", "Action label must be a non-empty string.")
     assert(action.separatorBefore == nil or type(action.separatorBefore) == "boolean", "Action separatorBefore must be a boolean.")
+    assert(action.icon == nil or type(action.icon) == "string", "Action icon must be a Lucide icon name.")
+    assert(action.visual == nil or type(action.visual) == "string", "Action visual must be a visual identifier.")
     assert(type(action.execute) == "function", "Action execute must be a function.")
     assert(action.isAvailable == nil or type(action.isAvailable) == "function", "Action availability must be a function.")
     if contextMenuActions[action.id] == nil then
@@ -178,7 +180,11 @@ Network.handlePayload("moonlight-editor:query-context-menu", function(player, pa
         end)
         if not ok then sendError(player, available)
         elseif available then
-            table.insert(actions, { id = action.id, label = action.label, separatorBefore = action.separatorBefore })
+            table.insert(actions, {
+                id = action.id, label = action.label, separatorBefore = action.separatorBefore,
+                icon = type(action.icon) == "string" and action.icon or nil,
+                visual = type(action.visual) == "string" and action.visual or nil,
+            })
         end
     end
     Network.sendToPlayer(player, "moonlight-editor:context-menu", {
