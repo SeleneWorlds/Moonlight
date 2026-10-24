@@ -13,7 +13,7 @@ const menu = ref<{
   requestId: number;
 } | null>(null);
 const menuElement = ref<InstanceType<typeof MoonlightSurface> | null>(null);
-const actions = ref<Array<{ id: string; label: string }>>([]);
+const actions = ref<Array<{ id: string; label: string; separatorBefore?: boolean }>>([]);
 const actionsLoaded = ref(false);
 const clipboardError = ref('');
 let requestId = 0;
@@ -94,7 +94,7 @@ onMounted(() => {
         return;
       }
       actions.value = payload.actions.filter(
-        (action): action is { id: string; label: string } =>
+        (action): action is { id: string; label: string; separatorBefore?: boolean } =>
           typeof action?.id === 'string' && typeof action?.label === 'string',
       );
       actionsLoaded.value = true;
@@ -139,17 +139,22 @@ onBeforeUnmount(() => {
     @pointerup.stop
     @contextmenu.prevent
   >
-    <MoonlightButton
-      class="moonlight-item"
-      variant="ghost"
-      v-for="action in actions"
-      :key="action.id"
-      type="button"
-      role="menuitem"
-      @click="execute(action.id)"
-    >
-      {{ action.label }}
-    </MoonlightButton>
+    <template v-for="(action, index) in actions" :key="action.id">
+      <div
+        v-if="index > 0 && action.separatorBefore === true"
+        class="separator moonlight-divider"
+        role="separator"
+      />
+      <MoonlightButton
+        class="moonlight-item"
+        variant="ghost"
+        type="button"
+        role="menuitem"
+        @click="execute(action.id)"
+      >
+        {{ action.label }}
+      </MoonlightButton>
+    </template>
     <div v-if="actions.length" class="separator moonlight-divider" role="separator" />
     <MoonlightButton class="moonlight-item" variant="ghost" type="button" role="menuitem" @click="copyCoordinates"
       >Copy Coordinates</MoonlightButton

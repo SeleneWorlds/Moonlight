@@ -116,12 +116,13 @@ function Editor.registerCoordinateLookup(lookup)
     registerProvider(coordinateLookups, lookup)
 end
 
----Register { id, label, isAvailable?(player, coordinate), execute(player, coordinate) }.
+---Register { id, label, separatorBefore?, isAvailable?(player, coordinate), execute(player, coordinate) }.
 ---Availability is checked for both coordinate queries and execution.
 function Editor.registerContextMenuAction(action)
     assert(type(action) == "table", "Context menu action must be a table.")
     assert(type(action.id) == "string" and action.id ~= "", "Action ID must be a non-empty string.")
     assert(type(action.label) == "string" and action.label ~= "", "Action label must be a non-empty string.")
+    assert(action.separatorBefore == nil or type(action.separatorBefore) == "boolean", "Action separatorBefore must be a boolean.")
     assert(type(action.execute) == "function", "Action execute must be a function.")
     assert(action.isAvailable == nil or type(action.isAvailable) == "function", "Action availability must be a function.")
     if contextMenuActions[action.id] == nil then
@@ -156,7 +157,9 @@ Network.handlePayload("moonlight-editor:query-context-menu", function(player, pa
             return not action.isAvailable or action.isAvailable(player, coordinate)
         end)
         if not ok then sendError(player, available)
-        elseif available then table.insert(actions, { id = id, label = action.label }) end
+        elseif available then
+            table.insert(actions, { id = id, label = action.label, separatorBefore = action.separatorBefore })
+        end
     end
     Network.sendToPlayer(player, "moonlight-editor:context-menu", {
         requestId = payload.requestId, actions = actions,
